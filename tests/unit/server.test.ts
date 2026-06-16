@@ -67,9 +67,34 @@ describe('server integration', () => {
       'create_ssh_ca',
       'enroll_ssh_certificate',
       'generate_krl',
+      'search_docs',
+      'get_doc',
     ]) {
       expect(names, `missing tool: ${expected}`).toContain(expected);
     }
+  });
+
+  it('exposes the knowledge resources', async () => {
+    const server = new McpServer(
+      { name: 'Stream MCP Server (test)', version: '0.0.0' },
+      { capabilities: { tools: {}, resources: {} } },
+    );
+    registerAllResources(server);
+    registerAllTools(server, {} as StreamClient);
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverT), client.connect(clientT)]);
+    const { resources } = await client.listResources();
+    await client.close();
+    const uris = resources.map((r) => r.uri);
+    expect(uris).toContain('stream://knowledge/server-rules');
+    expect(uris).toContain('stream://knowledge/query-languages');
+    expect(uris).toContain('stream://knowledge/ca-management');
+    // 15 top-level knowledge topics (split-section sub-resources add more).
+    const topLevel = uris.filter((u) =>
+      /^stream:\/\/knowledge\/[^/]+$/.test(u),
+    );
+    expect(topLevel.length).toBe(15);
   });
 
   it('annotates read vs destructive tools correctly', async () => {
