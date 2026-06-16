@@ -151,8 +151,17 @@ export async function getStripMergePut(
 
 /**
  * Parse a "field:order" string into Stream's sortedBy element.
- * order is normalized to uppercase ASC|DESC (Stream's wire form). Default ASC.
+ * Stream's SortOrder is a case-sensitive enum: Asc | Desc | KeyAsc | KeyDesc
+ * (an uppercase "ASC"/"DESC" is rejected with error.expected.validenumvalue).
+ * The order suffix is matched case-insensitively and normalized; default Asc.
  */
+const SORT_ORDERS: Record<string, string> = {
+  asc: 'Asc',
+  desc: 'Desc',
+  keyasc: 'KeyAsc',
+  keydesc: 'KeyDesc',
+};
+
 export function buildSortedBy(
   sortedBy?: string,
 ): Array<{ element: string; order: string }> | undefined {
@@ -160,8 +169,7 @@ export function buildSortedBy(
   const [rawElement, rawOrder] = sortedBy.split(':', 2);
   const element = (rawElement ?? '').trim();
   if (!element) return undefined;
-  const order =
-    (rawOrder ?? 'asc').trim().toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+  const order = SORT_ORDERS[(rawOrder ?? 'asc').trim().toLowerCase()] ?? 'Asc';
   return [{ element, order }];
 }
 

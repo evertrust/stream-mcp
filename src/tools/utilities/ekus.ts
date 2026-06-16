@@ -92,10 +92,12 @@ export function registerEkuTools(
           }),
         );
       }
-      // custom is server-controlled; send only name + oid.
+      // `custom` is server-forced to true, but Stream's play-json Reads makes the
+      // field MANDATORY on the wire (no default in the JSON parser) — omitting it
+      // returns 400 EKU-002 "/custom: error.path.missing". Send custom:true.
       const result = await client.post<Record<string, unknown>>(
         '/api/v1/extension/ekus',
-        { name, oid },
+        { name, oid, custom: true },
       );
       return text(
         buildMutateResponse({
@@ -130,9 +132,13 @@ export function registerEkuTools(
       }),
     },
     async ({ oid, name }) => {
+      // `custom` is mandatory on the wire (Stream's play-json Reads has no
+      // default), even though only `name` is actually updated server-side and
+      // the OID must already belong to a custom EKU. Omitting it returns 400
+      // EKU-002 "/custom: error.path.missing". Send custom:true.
       const result = await client.put<Record<string, unknown>>(
         '/api/v1/extension/ekus',
-        { oid, name },
+        { oid, name, custom: true },
       );
       return text(
         buildMutateResponse({

@@ -73,7 +73,8 @@ export function registerCaLifecycleTools(
         'private key(s). Preconditions: target must be external (CA-009), a CRL must ' +
         'already exist for it (CA-012), and altPrivateKey is mandatory iff the cert is ' +
         'hybrid (CA-011). The migrated CA becomes managed with enroll=false.\n' +
-        'Safety tier: mutating-idempotent\nRef: docs/audit/x509-ca.md.',
+        'Safety tier: mutating-safe (one-way external->managed; a repeat call ' +
+        'fails CA-009 since the CA is already managed).\nRef: docs/audit/x509-ca.md.',
       inputSchema: z.object({
         name: z.string().describe('Name of the external CA to migrate.'),
         private_key: signerPrivateKeySchema.describe(

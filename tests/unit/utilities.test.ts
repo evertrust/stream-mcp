@@ -135,7 +135,7 @@ describe('decoders', () => {
       certificate: { dn: 'CN=x' },
       privateKey: '-----BEGIN PRIVATE KEY-----...',
     });
-    await tool(tools, 'extract_pkcs12').handler({
+    const res = await tool(tools, 'extract_pkcs12').handler({
       content: 'P12BASE64',
       password: 's3cret',
     });
@@ -146,6 +146,11 @@ describe('decoders', () => {
     expect(pw).toBeDefined();
     expect(pw.data).toBe('s3cret');
     expect(pw.mimeType).toBe('text/plain');
+    // privateKey is a SECRET PEM and must be redacted in the tool result.
+    const out = json(res);
+    expect(out.privateKey).toBe('<redacted>');
+    expect(payload(res)).not.toContain('BEGIN PRIVATE KEY');
+    expect(out.certificate.dn).toBe('CN=x');
   });
 
   it('decode_openssh_pubkey POSTs multipart with field "sshPublicKey"', async () => {
@@ -238,7 +243,7 @@ describe('ekus', () => {
     );
   });
 
-  it('create_eku POSTs flat { name, oid } (custom is server-controlled)', async () => {
+  it('create_eku POSTs flat { name, oid, custom:true } (custom mandatory on the wire)', async () => {
     const { tools, client } = setup();
     client.post.mockResolvedValue({
       name: 'myEku',
@@ -249,12 +254,14 @@ describe('ekus', () => {
       name: 'myEku',
       oid: '1.3.4',
     });
+    // Stream's play-json Reads requires `custom` to be present (no default) —
+    // omitting it returns 400 EKU-002 "/custom: error.path.missing". The server
+    // forces the persisted value to true regardless.
     expect(client.post).toHaveBeenCalledWith('/api/v1/extension/ekus', {
       name: 'myEku',
       oid: '1.3.4',
+      custom: true,
     });
-    // never sends custom on the wire
-    expect(client.post.mock.calls[0][1]).not.toHaveProperty('custom');
     expect(json(res).status).toBe('created');
     expect(json(res).name).toBe('1.3.4');
   });
@@ -269,7 +276,7 @@ describe('ekus', () => {
     expect(json(res).error).toBe('INVALID_OID');
   });
 
-  it('update_eku PUTs flat { oid, name } on the collection root (no GET, no path param)', async () => {
+  it('update_eku PUTs flat { oid, name, custom:true } on the collection root (no GET, no path param)', async () => {
     const { tools, client } = setup();
     client.put.mockResolvedValue({
       name: 'renamed',
@@ -281,9 +288,12 @@ describe('ekus', () => {
       name: 'renamed',
     });
     expect(client.get).not.toHaveBeenCalled();
+    // `custom` is mandatory on the wire (Stream's play-json Reads has no default);
+    // omitting it returns 400 EKU-002 "/custom: error.path.missing".
     expect(client.put).toHaveBeenCalledWith('/api/v1/extension/ekus', {
       oid: '1.3.4',
       name: 'renamed',
+      custom: true,
     });
     expect(json(res).status).toBe('updated');
     expect(json(res).name).toBe('1.3.4');

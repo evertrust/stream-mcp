@@ -48,11 +48,12 @@ const SEARCH_INPUT = z.object({
     .string()
     .optional()
     .describe(
-      'SEQL filter expression. Empty/omitted defaults to `id exists` ' +
-        '(matches all). String fields: code, node, module, status (equals/' +
-        'matches/contains/in). Date field: timestamp (equals/before/after, ' +
-        'e.g. `timestamp after -7days`). Detail fields: `detail.<key>` ' +
+      'SEQL filter expression. Empty/omitted matches all events (the server ' +
+        'applies an empty filter). String fields: code, node, module, status ' +
+        '(equals/matches/contains/in). Date field: timestamp (equals/before/' +
+        'after, e.g. `timestamp after -7days`). Detail fields: `detail.<key>` ' +
         '(use get_event_dictionary for valid keys), with exists/within too. ' +
+        'Note: `exists` is only valid on `detail.<key>`, not on id/code/etc. ' +
         'Example: `module equals service and status equals success`.',
     ),
   page_index: z
@@ -89,7 +90,7 @@ function registerSearch(server: McpServer, client: StreamClient): void {
       description:
         'Search audit events with the SEQL DSL. Returns a paginated page of ' +
         'events (id, code, module, node, timestamp, status, details). Events ' +
-        'are immutable/append-only. Use `id exists` to match everything.',
+        'are immutable/append-only. Omit `query` to match every event.',
       inputSchema: SEARCH_INPUT,
       outputSchema: SEARCH_RESPONSE_OUTPUT_SCHEMA,
     },
@@ -98,10 +99,13 @@ function registerSearch(server: McpServer, client: StreamClient): void {
         args.page_index && args.page_index > 0 ? args.page_index : 1;
       const pageSize = Math.min(args.page_size ?? 20, MAX_PAGE_SIZE);
       const payload: Record<string, unknown> = {
-        query: args.query && args.query.trim() ? args.query : 'id exists',
         pageIndex,
         pageSize,
       };
+      // SEQL has no match-all literal for events (`exists` is detail-only, so
+      // `id exists` is a STREAMQL-001 parse error). An absent `query` makes the
+      // server apply an empty filter (match all), per the audit contract.
+      if (args.query && args.query.trim()) payload['query'] = args.query;
       if (args.sorted_by && args.sorted_by.length > 0) {
         payload['sortedBy'] = args.sorted_by;
       }

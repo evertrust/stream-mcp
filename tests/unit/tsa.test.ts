@@ -213,13 +213,13 @@ describe('timestamping signers', () => {
     });
   });
 
-  it('update_tsa_signer strips id/certificate/dn and sends certificate_pem as a PEM string', async () => {
+  it('update_tsa_signer strips id/certificate and sends certificate_pem as a PEM string', async () => {
     const { client, invoke } = setup();
+    // A cert-bearing signer: the server forced dn=None, so the GET has no `dn`.
     client.get.mockResolvedValue({
       id: 'srv-id',
       name: 'S1',
       certificate: { dn: 'CN=rich', pem: 'PEM' }, // rich-on-read; must strip
-      dn: 'CN=old', // forced None once cert exists; strip
       privateKey: { keystore: 'KS', name: 'K', hashAlgorithm: 'SHA256' },
       triggers: {},
     });
@@ -234,7 +234,6 @@ describe('timestamping signers', () => {
     const putBody = client.put.mock.calls[0][1];
     // stripped from GET
     expect(putBody.id).toBeUndefined();
-    expect(putBody.dn).toBeUndefined();
     // certificate overridden as a write-only PEM string (not the rich object)
     expect(putBody.certificate).toBe(pem);
     expect(typeof putBody.certificate).toBe('string');
@@ -243,6 +242,33 @@ describe('timestamping signers', () => {
       keystore: 'KS',
       name: 'K',
       hashAlgorithm: 'SHA256',
+    });
+  });
+
+  it('update_tsa_signer preserves dn from GET when the signer has no certificate (server requires it)', async () => {
+    const { client, invoke } = setup();
+    // A PEM-less signer: dn is mandatory. The GET-strip-merge-PUT must NOT drop
+    // dn, else the server rejects the PUT (TIMESTAMPING-SIGNER-002 "dn is
+    // mandatory when certificate is not specified"). Verified live on QA.
+    client.get.mockResolvedValue({
+      id: 'srv-id',
+      name: 'S1',
+      dn: 'CN=S1',
+      privateKey: { keystore: 'KS', name: 'K', hashAlgorithm: 'SHA256' },
+    });
+    client.put.mockImplementation(async (_p: string, body: any) => body);
+    await invoke('update_tsa_signer', {
+      name: 'S1',
+      private_key: { keystore: 'KS', name: 'K', hash_algorithm: 'SHA384' },
+    });
+    const putBody = client.put.mock.calls[0][1];
+    expect(putBody.id).toBeUndefined();
+    // dn carried through from the GET (not stripped)
+    expect(putBody.dn).toBe('CN=S1');
+    expect(putBody.privateKey).toEqual({
+      keystore: 'KS',
+      name: 'K',
+      hashAlgorithm: 'SHA384',
     });
   });
 

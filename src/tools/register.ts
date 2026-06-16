@@ -118,8 +118,11 @@ function classify(name: string): Classification {
     };
   }
 
-  // Idempotent mutations (converge to the same state)
-  if (/^(update|set|upsert|assign|reset|migrate)_/.test(name)) {
+  // Idempotent mutations (converge to the same state).
+  // NB: migrate_* is one-way (repeat -> CA-009) and reset_* mints fresh state
+  // (new password) each call, so neither is idempotent - they fall through to
+  // the additive branch below.
+  if (/^(update|set|upsert|assign)_/.test(name)) {
     return {
       annotations: {
         title,

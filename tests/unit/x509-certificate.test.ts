@@ -84,7 +84,7 @@ describe('search_certificates', () => {
       pageIndex: 2,
       pageSize: 50,
       fields: ['id', 'dn', 'serial'],
-      sortedBy: [{ element: 'notAfter', order: 'DESC' }],
+      sortedBy: [{ element: 'notAfter', order: 'Desc' }],
       withCount: true,
     });
   });

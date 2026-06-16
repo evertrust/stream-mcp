@@ -386,10 +386,31 @@ describe('search_ssh_certificates', () => {
     const body = client.post.mock.calls[0]![1] as Record<string, unknown>;
     expect(body.query).toBe('type equals "USER"');
     expect(body.fields).toEqual(['ca', 'serial', 'type']);
-    expect(body.sortedBy).toEqual([{ element: 'validBefore', order: 'DESC' }]);
+    // SortOrder is a case-sensitive PlayEnum: server expects "Desc", not "DESC".
+    expect(body.sortedBy).toEqual([{ element: 'validBefore', order: 'Desc' }]);
     expect(body.pageIndex).toBe(2);
     expect(body.pageSize).toBe(10);
     expect(body.withCount).toBe(true);
+  });
+
+  it('emits the exact case-sensitive SortOrder entryName for each alias', async () => {
+    const { client, byName } = setup();
+    client.post.mockResolvedValue({ results: [] });
+    const cases: Array<[string, string]> = [
+      ['validBefore:asc', 'Asc'],
+      ['validBefore:DESC', 'Desc'],
+      ['validBefore:KeyAsc', 'KeyAsc'],
+      ['validBefore:keydesc', 'KeyDesc'],
+      ['validBefore', 'Asc'], // default
+    ];
+    for (const [input, expectedOrder] of cases) {
+      client.post.mockClear();
+      await byName('search_ssh_certificates').h({ sorted_by: input });
+      const body = client.post.mock.calls[0]![1] as Record<string, unknown>;
+      expect(body.sortedBy).toEqual([
+        { element: 'validBefore', order: expectedOrder },
+      ]);
+    }
   });
 });
 

@@ -14,13 +14,13 @@ import type { StreamClient } from '../../client/http.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   type ConfigSpec,
-  getStripMergePutExplicit,
   registerDeleteTool,
   registerDescribeSchemaTool,
   registerReadTools,
 } from '../_scaffold.js';
 import { buildMutateResponse, encodePathSegment } from '../helpers.js';
 import { registerTool } from '../register.js';
+import { StreamError } from '../../client/errors.js';
 
 import { CA_TYPES } from './enums.js';
 import { CA_JSON_SCHEMA, caConfigSchema } from './schema.js';
@@ -32,19 +32,22 @@ const KNOWLEDGE_REF = 'docs/audit/x509-ca.md';
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
 /**
- * Strip set for update PUT. Beyond name (immutable) we MUST strip every field
- * the server restores/recomputes from the previous record so the body never
- * sends a rich-on-read value where the server expects a PEM/string:
- *   - certificate (PEM in / rich out), privateKey, altPrivateKey, dn
- *   - revoked / revocationDate / revocationReason (server-computed, reset)
- *   - id (server-assigned)
+ * Server-managed fields that are OPTIONAL in the case-class JSON reads, so they
+ * can be dropped from the update PUT body entirely. The server resets them
+ * (updateFrom resets revoked/revocationDate/revocationReason and takes id from
+ * the previous record) — never author them.
+ *
+ * NOTE: `privateKey` (managed) and `certificate` (managed-issued + external) are
+ * deliberately NOT dropped: they are REQUIRED for the body to deserialize
+ * (`validate[X509CertificateAuthority]` runs BEFORE `updateFrom`; managed
+ * `privateKey` has no default, external `certificate` is `require`d by the
+ * constructor). They are carried over from the GET in update_ca (certificate is
+ * converted from the rich-on-read object to its PEM string, which is the only
+ * shape the reads accept). `dn` is also carried over from the GET so a PENDING
+ * managed CA (no cert) keeps its mandatory dn; an issued CA's GET has dn=null.
  */
 const STRIP_FIELDS = [
   'id',
-  'certificate',
-  'privateKey',
-  'altPrivateKey',
-  'dn',
   'revoked',
   'revocationDate',
   'revocationReason',
@@ -149,18 +152,52 @@ export function registerCaCrudTools(
     async ({ config }) => {
       validateCaUpdateConfig(config);
       const getPath = `${ROUTE_COLLECTION}/${encodePathSegment(config.name)}`;
-      // overrides = the whole config minus strip fields (they are restored).
-      const overrides: Record<string, unknown> = {};
-      const strip = new Set<string>(STRIP_FIELDS);
-      for (const [k, v] of Object.entries(config)) {
-        if (v !== undefined && !strip.has(k)) overrides[k] = v;
+      const current = await client.get<Record<string, unknown>>(getPath);
+      if (
+        current === null ||
+        typeof current !== 'object' ||
+        Array.isArray(current)
+      ) {
+        throw new StreamError(502, {
+          errorCode: 'CONFIG-BAD-GET',
+          message: `Expected a single object from ${getPath} before update.`,
+        });
       }
-      const result = await getStripMergePutExplicit(
-        client,
-        getPath,
+      // Build the PUT body from the current record:
+      //  - drop server-reset OPTIONAL fields (id/revoked/revocationDate/
+      //    revocationReason) — they have no JSON default and are reset by
+      //    updateFrom anyway;
+      //  - convert the rich-on-read `certificate` object to its PEM string (the
+      //    only shape the reads accept); keep `privateKey`/`altPrivateKey`/`dn`
+      //    so the body deserializes (managed privateKey is required; external
+      //    certificate is required; a pending CA's dn is mandatory).
+      const strip = new Set<string>(STRIP_FIELDS);
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(current)) {
+        if (strip.has(k)) continue;
+        if (
+          k === 'certificate' &&
+          v !== null &&
+          typeof v === 'object' &&
+          !Array.isArray(v)
+        ) {
+          const pem = (v as Record<string, unknown>)['pem'];
+          if (typeof pem === 'string') {
+            payload['certificate'] = pem;
+            continue;
+          }
+        }
+        payload[k] = v;
+      }
+      // Apply user overrides for mutable fields (certificate/privateKey/dn are
+      // server-restored on issued CAs but harmless to override; the server
+      // honors only usePSS/hashAlgorithm from privateKey).
+      for (const [k, v] of Object.entries(config)) {
+        if (v !== undefined && !strip.has(k)) payload[k] = v;
+      }
+      const result = await client.put<Record<string, unknown>>(
         ROUTE_COLLECTION,
-        STRIP_FIELDS,
-        overrides,
+        payload,
       );
       return text(
         buildMutateResponse({

@@ -49,7 +49,7 @@ describe('events registration', () => {
 });
 
 describe('search_events', () => {
-  it('defaults empty query to `id exists` and posts the search payload', async () => {
+  it('omits query (server match-all) when none is provided', async () => {
     const { client, tool } = setup();
     client.post.mockResolvedValue({
       results: [{ id: 'a', code: 'SERVICE-START' }],
@@ -59,10 +59,11 @@ describe('search_events', () => {
     });
     const res = await tool('search_events').h({});
     expect(client.post).toHaveBeenCalledWith('/api/v1/events/search', {
-      query: 'id exists',
       pageIndex: 1,
       pageSize: 20,
     });
+    const payload = client.post.mock.calls[0][1];
+    expect(payload).not.toHaveProperty('query');
     const body = JSON.parse(lastText(res));
     expect(body.results).toEqual([{ id: 'a', code: 'SERVICE-START' }]);
     expect(body.page_index).toBe(1);

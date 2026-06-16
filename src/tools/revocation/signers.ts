@@ -19,7 +19,11 @@
  *     set -> in stripFields; never an input field here.
  *   - privateKey.keystore + privateKey.name are immutable once a cert exists; the
  *     server keeps the previous values, so the GET-strip-merge-PUT cycle is safe.
- *   - dn is forced None once a cert exists -> in stripFields.
+ *   - dn is NOT stripped: it is MANDATORY for a cert-less signer (the server
+ *     rejects a missing dn with OCSP-SIGNER-002 "dn is mandatory when certificate
+ *     is not specified"), so it must survive the update round-trip. Once a cert
+ *     exists the GET omits dn and the server forces it None, so leaving it out of
+ *     the strip set is harmless.
  *
  * Grounded in docs/audit/revocation.md.
  */
@@ -66,9 +70,16 @@ const SIGNER_SPEC: ConfigSpec = {
   routeItem: `${SIGNER_ROUTE}/{name}`,
   idField: 'name',
   immutableKeys: ['name'],
-  // certificate: rich-on-read object / write-only PEM, immutable once set.
-  // dn: forced None once a cert exists. id: server-generated.
-  stripFields: ['id', 'certificate', 'dn'],
+  // certificate: rich-on-read object / write-only PEM, immutable once set ->
+  //   must be stripped (server keeps the previous cert; sending the rich object
+  //   where a PEM string is expected would 400).
+  // id: server-generated (taken from the previous record).
+  // dn is NOT stripped: for a cert-less signer `dn` is MANDATORY on the PUT
+  //   ("dn is mandatory when certificate is not specified", OCSP-SIGNER-002), so
+  //   it must survive the GET-strip-merge-PUT. When a certificate exists the GET
+  //   omits `dn` (it's None) and the server forces it to None anyway, so keeping
+  //   it out of the strip set is harmless in that case.
+  stripFields: ['id', 'certificate'],
   putOnCollection: true,
 };
 

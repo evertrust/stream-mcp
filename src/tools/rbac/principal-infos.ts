@@ -229,10 +229,13 @@ export function registerPrincipalInfoTools(
       if (args.strict_search !== undefined)
         body['strictSearch'] = args.strict_search;
       if (args.sorted_by !== undefined) {
+        // Wire shape is SortElement{element, order} with SortOrder entryNames
+        // "Asc"/"Desc" (PascalCase, case-sensitive). The user-facing ASC/DESC
+        // input is mapped to the on-the-wire enum value.
         body['sortedBy'] = [
           {
             element: args.sorted_by,
-            direction: args.sort_direction ?? 'ASC',
+            order: args.sort_direction === 'DESC' ? 'Desc' : 'Asc',
           },
         ];
       }

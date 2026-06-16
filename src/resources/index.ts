@@ -96,7 +96,7 @@ export function registerAllResources(server: McpServer): void {
     }),
     {
       description:
-        'Section view of a knowledge topic (e.g. stream://knowledge/query-languages/ceql-fields).',
+        'Section view of a knowledge topic (e.g. stream://knowledge/query-languages/scql-fields).',
       mimeType: 'text/markdown',
       annotations: { audience: ['assistant'], priority: 0.4 },
     },

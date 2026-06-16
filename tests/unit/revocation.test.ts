@@ -192,13 +192,13 @@ describe('OCSP signer CRUD', () => {
     });
   });
 
-  it('update_ocsp_signer does GET-strip-merge-PUT stripping id/certificate/dn', async () => {
+  it('update_ocsp_signer does GET-strip-merge-PUT stripping id/certificate but PRESERVING dn', async () => {
     const { client, invoke } = setup();
     client.get.mockResolvedValue({
       id: 'srv-id',
       name: 'S1',
       certificate: { dn: 'CN=rich', pem: 'PEM' }, // rich-on-read; must strip
-      dn: 'CN=old', // forced None once cert exists; strip
+      dn: 'CN=old', // NOT stripped (mandatory for cert-less signers; server forces None when a cert exists)
       privateKey: { keystore: 'KS', name: 'K', hashAlgorithm: 'SHA256' },
       queue: 'oldq',
     });
@@ -212,7 +212,8 @@ describe('OCSP signer CRUD', () => {
     const putBody = client.put.mock.calls[0][1];
     expect(putBody.id).toBeUndefined();
     expect(putBody.certificate).toBeUndefined();
-    expect(putBody.dn).toBeUndefined();
+    // dn is preserved from the GET (not in stripFields).
+    expect(putBody.dn).toBe('CN=old');
     expect(putBody.name).toBe('S1');
     expect(putBody.privateKey).toEqual({
       keystore: 'KS',
@@ -220,6 +221,33 @@ describe('OCSP signer CRUD', () => {
       hashAlgorithm: 'SHA256',
     });
     expect(putBody.queue).toBe('newq');
+  });
+
+  it('update_ocsp_signer keeps the mandatory dn for a cert-less signer (OCSP-SIGNER-002 guard)', async () => {
+    // Regression: a cert-less signer requires `dn` on the PUT
+    // ("dn is mandatory when certificate is not specified"). Stripping dn from
+    // the GET-strip-merge-PUT cycle dropped it and the server rejected the PUT.
+    const { client, invoke } = setup();
+    client.get.mockResolvedValue({
+      id: 'srv-id',
+      name: 'S1',
+      dn: 'CN=S1', // cert-less signer: dn is the only subject source and is mandatory
+      privateKey: { keystore: 'KS', name: 'K', hashAlgorithm: 'SHA384' },
+    });
+    client.put.mockImplementation(async (_p: string, body: any) => body);
+    await invoke('update_ocsp_signer', {
+      name: 'S1',
+      private_key: { keystore: 'KS', name: 'K', hash_algorithm: 'SHA256' },
+    });
+    const putBody = client.put.mock.calls[0][1];
+    // The mandatory dn survives so the server-side invariant is satisfied.
+    expect(putBody.dn).toBe('CN=S1');
+    expect(putBody.id).toBeUndefined();
+    expect(putBody.privateKey).toEqual({
+      keystore: 'KS',
+      name: 'K',
+      hashAlgorithm: 'SHA256',
+    });
   });
 
   it('update_ocsp_signer maps a supplied private_key override to camelCase', async () => {
