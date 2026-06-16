@@ -197,16 +197,22 @@ describe('create_ca', () => {
 });
 
 describe('update_ca', () => {
-  it('GET-strip-merge-PUTs: strips certificate/privateKey/dn/revoked*, PUTs collection root', async () => {
+  it('issued managed: keeps privateKey, converts rich certificate->PEM, drops id/revoked*, PUTs collection root', async () => {
     const { client, byName } = setup();
     client.get.mockResolvedValue({
       id: 'srv-id',
       type: 'managed',
       name: 'Root',
-      certificate: { dn: 'CN=Root', pem: 'rich' }, // rich-on-read -> must be stripped
+      // rich-on-read certificate object -> must be sent back as its PEM string
+      // (the only shape the server reads accept), NOT stripped (it is required
+      // to deserialize an issued CA and is server-restored).
+      certificate: { dn: 'CN=Root', pem: 'PEM-ROOT' },
+      // required to deserialize a managed CA -> must remain in the PUT body.
       privateKey: { keystore: 'ks', name: 'k', hashAlgorithm: 'SHA256' },
       dn: null,
       revoked: false,
+      revocationDate: 123,
+      revocationReason: 'keyCompromise',
       enroll: false,
       enforceKeyUnicity: false,
       trustedForClientAuthentication: false,
@@ -230,18 +236,24 @@ describe('update_ca', () => {
         trustedForClientAuthentication: true,
         trustedForServerAuthentication: false,
         description: 'new',
-        privateKey: { keystore: 'ks', name: 'k' }, // ignored (stripped)
       },
     });
 
     expect(client.get).toHaveBeenCalledWith('/api/v1/cas/Root');
     expect(putPath).toBe('/api/v1/cas'); // PUT on collection root
-    // server-managed fields stripped
+    // server-reset OPTIONAL fields dropped
     expect(putBody.id).toBeUndefined();
-    expect(putBody.certificate).toBeUndefined();
-    expect(putBody.privateKey).toBeUndefined();
     expect(putBody.revoked).toBeUndefined();
-    expect(putBody.dn).toBeUndefined();
+    expect(putBody.revocationDate).toBeUndefined();
+    expect(putBody.revocationReason).toBeUndefined();
+    // certificate carried over as a PEM string (rich object -> .pem)
+    expect(putBody.certificate).toBe('PEM-ROOT');
+    // privateKey carried over (required to deserialize; server-restored)
+    expect(putBody.privateKey).toEqual({
+      keystore: 'ks',
+      name: 'k',
+      hashAlgorithm: 'SHA256',
+    });
     // overrides applied
     expect(putBody.enroll).toBe(true);
     expect(putBody.description).toBe('new');
@@ -249,6 +261,78 @@ describe('update_ca', () => {
     // preserved from previous
     expect(putBody.name).toBe('Root');
     expect(putBody.type).toBe('managed');
+  });
+
+  it('pending managed (no cert): keeps the mandatory dn, no certificate field', async () => {
+    const { client, byName } = setup();
+    client.get.mockResolvedValue({
+      id: 'srv-id',
+      type: 'managed',
+      name: 'Pending',
+      dn: 'CN=Pending, C=FR',
+      privateKey: { keystore: 'ks', name: 'k', hashAlgorithm: 'SHA256' },
+      enroll: true,
+      enforceKeyUnicity: false,
+      trustedForClientAuthentication: false,
+      trustedForServerAuthentication: false,
+    });
+    let putBody: any;
+    client.put.mockImplementation(async (_p: string, b: any) => {
+      putBody = b;
+      return { ...b };
+    });
+
+    await byName('update_ca').h({
+      config: {
+        type: 'managed',
+        name: 'Pending',
+        enroll: true,
+        enforceKeyUnicity: false,
+        trustedForClientAuthentication: true,
+        trustedForServerAuthentication: false,
+      },
+    });
+
+    expect(putBody.dn).toBe('CN=Pending, C=FR'); // mandatory when no cert
+    expect('certificate' in putBody).toBe(false);
+    expect(putBody.privateKey).toEqual({
+      keystore: 'ks',
+      name: 'k',
+      hashAlgorithm: 'SHA256',
+    });
+  });
+
+  it('external: keeps the mandatory certificate as PEM', async () => {
+    const { client, byName } = setup();
+    client.get.mockResolvedValue({
+      id: 'srv-id',
+      type: 'external',
+      name: 'Ext',
+      certificate: { dn: 'CN=Ext', pem: 'PEM-EXT' },
+      outdatedRevocationStatusPolicy: 'revoked',
+      trustedForClientAuthentication: true,
+      trustedForServerAuthentication: true,
+      crlUrls: ['http://crl.example/ca.crl'],
+    });
+    let putBody: any;
+    client.put.mockImplementation(async (_p: string, b: any) => {
+      putBody = b;
+      return { ...b };
+    });
+
+    await byName('update_ca').h({
+      config: {
+        type: 'external',
+        name: 'Ext',
+        trustedForClientAuthentication: true,
+        trustedForServerAuthentication: false,
+        outdatedRevocationStatusPolicy: 'unknown',
+      },
+    });
+
+    expect(putBody.certificate).toBe('PEM-EXT'); // required -> kept as PEM
+    expect(putBody.outdatedRevocationStatusPolicy).toBe('unknown'); // override
+    expect(putBody.trustedForServerAuthentication).toBe(false); // override
   });
 });
 

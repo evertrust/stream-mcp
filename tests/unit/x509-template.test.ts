@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { registerX509TemplateTools } from '../../src/tools/x509-template/index.js';
+import { ekuSchema } from '../../src/tools/x509-template/schemas.js';
 
 interface RegisteredTool {
   n: string;
@@ -293,5 +294,20 @@ describe('registerX509TemplateTools', () => {
     const { byName } = setup();
     expect(byName('delete_template').c.annotations.destructiveHint).toBe(true);
     expect(byName('list_templates').c.annotations.readOnlyHint).toBe(true);
+  });
+
+  // Live regression: the server REQUIRES eku.values[].custom on input and 400s
+  // ("/eku/values(0)/custom: error.path.missing") when it is absent. The schema
+  // defaults it to false so a parsed eku value always carries it on the wire.
+  it('eku value custom defaults to false when omitted (parsed via schema)', () => {
+    const parsed = ekuSchema.parse({
+      critical: false,
+      values: [{ name: 'serverAuth', oid: '1.3.6.1.5.5.7.3.1' }],
+    });
+    expect(parsed.values[0]).toEqual({
+      name: 'serverAuth',
+      oid: '1.3.6.1.5.5.7.3.1',
+      custom: false,
+    });
   });
 });

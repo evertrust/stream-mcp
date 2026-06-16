@@ -487,7 +487,7 @@ describe('principal infos', () => {
         identifier: 'admin',
         role: 'Admin',
         strictSearch: true,
-        sortedBy: [{ element: 'identifier', direction: 'DESC' }],
+        sortedBy: [{ element: 'identifier', order: 'Desc' }],
         withCount: true,
       },
     );

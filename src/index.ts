@@ -30,7 +30,7 @@ const SERVER_INSTRUCTIONS = [
   '',
   'Where to look:',
   '- Operating rules + workflows: stream://knowledge/server-rules',
-  '- Query syntax (SEQL/CEQL fields): stream://knowledge/query-languages',
+  '- Query syntax (SEQL = events, SCQL = certificates): stream://knowledge/query-languages',
   '- CA management workflows: stream://knowledge/ca-management',
 ].join('\n');
 

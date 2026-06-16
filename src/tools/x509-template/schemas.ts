@@ -54,9 +54,12 @@ export const ekuValueSchema = z.object({
   oid: z.string().describe('EKU OID (must be a valid OID).'),
   custom: z
     .boolean()
-    .optional()
+    .default(false)
     .describe(
-      'true for a custom EKU; custom EKU names must already exist at /api/v1/extension/ekus.',
+      'true for a custom EKU; custom EKU names must already exist at ' +
+        '/api/v1/extension/ekus. The server REQUIRES this field on every eku ' +
+        'value (it 400s with "/eku/values(n)/custom: error.path.missing" if ' +
+        'absent), so it defaults to false and is always sent.',
     ),
 });
 

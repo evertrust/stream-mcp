@@ -16,7 +16,9 @@
  *     critical.
  *   - privateKey.keystore + privateKey.name are immutable once a cert exists; the
  *     server keeps the previous values, so the GET-strip-merge-PUT cycle is safe.
- *   - dn is cleared once a cert exists -> in stripFields.
+ *   - dn is mandatory while the signer has no certificate and is cleared by
+ *     the server once a cert exists, so it is NOT stripped: the GET value (or a
+ *     user override) is carried through to keep the no-cert PUT valid.
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -46,8 +48,13 @@ const SIGNER_SPEC: ConfigSpec = {
   idField: 'name',
   immutableKeys: ['name'],
   // certificate: rich-on-read object / write-only PEM, forced empty on create and
-  // immutable once set. dn: cleared once a cert exists. id: server-generated.
-  stripFields: ['id', 'certificate', 'dn'],
+  // immutable once set. id: server-generated. dn is NOT stripped: it is the
+  // PEM-less signer's mandatory subject and the server requires it whenever the
+  // signer has no certificate (else 400 "dn is mandatory when certificate is not
+  // specified"). When a certificate exists the GET returns no dn (the server
+  // cleared it), so there is nothing to strip; and on cert-attach the server
+  // clears dn before validation, so a carried-over dn is harmless.
+  stripFields: ['id', 'certificate'],
   putOnCollection: true,
 };
 

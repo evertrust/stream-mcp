@@ -20,6 +20,7 @@ import { z } from 'zod';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+import { redactSensitive } from '../../client/errors.js';
 import type { MultipartPart, StreamClient } from '../../client/http.js';
 import { registerTool } from '../register.js';
 
@@ -178,9 +179,10 @@ export function registerDecoderTools(
         ],
         'application/json',
       );
-      // privateKey is redacted by the foundation's response handling; surface the
-      // raw object but never log it here.
-      return text(JSON.stringify(result));
+      // privateKey is a SECRET PEM. Nothing in the success path redacts it
+      // automatically (redactSensitive only runs in buildMutateResponse / error
+      // parsing), so redact it explicitly here before it enters the tool result.
+      return text(JSON.stringify(redactSensitive(result)));
     },
   );
 
