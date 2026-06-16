@@ -46,6 +46,10 @@ export const EXTENSION_TYPES = [
   'ms_template_v2',
 ] as const;
 
+// Empty extension type for enroll template.emptyExtensions[].
+// The server accepts only one value.
+export const EMPTY_EXTENSION_TYPES = ['no_revocation_check'] as const;
+
 // Key usage for enroll template.ku.values[].
 export const KEY_USAGE_ELEMENTS = [
   'digitalSignature',
