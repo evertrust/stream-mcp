@@ -78,8 +78,9 @@ function titleFromName(name: string): string {
 }
 
 // Read-only verbs / patterns: queries + non-mutating generators.
+// `find_` covers read-only POST searches (e.g. find_ca_keys).
 const READ_ONLY_RE =
-  /^(list|get|search|aggregate|describe|decode|detect|export|extract)_/;
+  /^(list|get|search|find|aggregate|describe|decode|detect|export|extract)_/;
 
 function classify(name: string): Classification {
   const title = titleFromName(name);
