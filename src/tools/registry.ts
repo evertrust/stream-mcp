@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { StreamClient } from '../client/http.js';
 import { registerCryptoTools } from './crypto/index.js';
+import { registerDocsTools } from './docs/index.js';
 import { registerEventTools } from './events/index.js';
 import { registerRbacTools } from './rbac/index.js';
 import { registerRevocationTools } from './revocation/index.js';
@@ -44,4 +45,6 @@ export function registerAllTools(
   registerTsaTools(server, client);
   // SSH
   registerSshTools(server, client);
+  // Knowledge base (search_docs + get_doc over stream://knowledge/*)
+  registerDocsTools(server, client);
 }
