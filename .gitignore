@@ -1,0 +1,30 @@
+# Secrets / local env — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+bun.lock
+.npmrc
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.eslintcache
