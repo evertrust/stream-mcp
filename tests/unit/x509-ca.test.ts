@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { registerX509CaTools } from '../../src/tools/x509-ca/index.js';
+import { HASH_ALGORITHMS, QC_TYPES } from '../../src/tools/x509-ca/enums.js';
 
 // ---------------------------------------------------------------------------
 // Mock harness: capture registered tools, invoke handlers directly.
@@ -66,6 +67,31 @@ describe('x509-ca registration', () => {
       expect(names, `missing ${t}`).toContain(t);
     }
     expect(names).toContain('describe_ca_schema');
+  });
+});
+
+describe('enum wire values (live-verified against the server)', () => {
+  it('QC_TYPES are the exact CFQCType constants (no WEB_AUTHENTICATION; NONE present)', () => {
+    // Live: WEB_AUTHENTICATION -> CA-002 "No enum constant ...CFQCType.WEB_AUTHENTICATION".
+    expect([...QC_TYPES]).toEqual(['WEB', 'ESIGN', 'ESEAL', 'NONE']);
+    expect(QC_TYPES).not.toContain('WEB_AUTHENTICATION');
+  });
+
+  it('HASH_ALGORITHMS use underscore SHA-3 names (CFHashAlgorithm.valueOf, no hyphens)', () => {
+    // Live: SHA3-512 -> CA-002 "No enum constant ...CFHashAlgorithm.SHA3-512";
+    // SHA3_512 round-trips. The format is valueOf(name) with no normalization.
+    expect([...HASH_ALGORITHMS]).toEqual([
+      'SHA1',
+      'SHA224',
+      'SHA256',
+      'SHA384',
+      'SHA512',
+      'SHA3_224',
+      'SHA3_256',
+      'SHA3_384',
+      'SHA3_512',
+    ]);
+    expect(HASH_ALGORITHMS.some((h) => h.includes('-'))).toBe(false);
   });
 });
 

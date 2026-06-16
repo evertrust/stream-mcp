@@ -52,6 +52,30 @@ const secretObject = z
     'Write-only secret. Send {clear: "..."}; returned as {} (redacted).',
   );
 
+// CredentialsTriggers: optional trigger names fired on credential expiration.
+// Wire shape: {onCredentialsExpiration: ["<existing trigger name>", ...]}.
+// Referenced triggers must already exist or the server returns 400.
+const credentialTriggers = z
+  .object({
+    on_credentials_expiration: z
+      .array(z.string())
+      .describe(
+        'Names of existing triggers to fire when the credential expires.',
+      ),
+  })
+  .describe(
+    'Optional triggers. Currently only on_credentials_expiration; trigger ' +
+      'names must reference existing triggers (400 otherwise).',
+  );
+
+/** Map the snake_case trigger input to the on-the-wire CredentialsTriggers. */
+function buildTriggers(
+  t: { on_credentials_expiration: string[] } | undefined,
+): Record<string, unknown> | undefined {
+  if (t === undefined) return undefined;
+  return { onCredentialsExpiration: t.on_credentials_expiration };
+}
+
 const passwordCred = z.object({
   type: z.literal('password'),
   name: z.string().describe('Immutable credential name (primary key).'),
@@ -62,6 +86,7 @@ const passwordCred = z.object({
   login: z.string().describe('Login / username.'),
   password: secretObject.optional(),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
+  triggers: credentialTriggers.optional(),
 });
 
 const rawCred = z.object({
@@ -73,6 +98,7 @@ const rawCred = z.object({
   description: z.string().optional(),
   secret: secretObject.optional(),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
+  triggers: credentialTriggers.optional(),
 });
 
 const sshCred = z.object({
@@ -90,6 +116,7 @@ const sshCred = z.object({
       'Write-only SSH private key ({clear: "<PEM>"}); validated as a parseable key.',
     ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
+  triggers: credentialTriggers.optional(),
 });
 
 const x509Cred = z.object({
@@ -105,8 +132,11 @@ const x509Cred = z.object({
   key_pair: secretObject
     .optional()
     .describe(
-      'Write-only private key ({clear: "<PEM>"}); must match the certificate public key.',
+      'Write-only private key ({clear: "<PEM>"}); must match the certificate ' +
+        'public key. REQUIRED on create (the server rejects an x509 credential ' +
+        'with no key). Omit on update to keep the stored key.',
     ),
+  triggers: credentialTriggers.optional(),
 });
 
 const credentialInput = z.discriminatedUnion('type', [
@@ -149,14 +179,20 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'x509': {
+      // SecretStore.keyPair is a REQUIRED JSON field (no default) - sending
+      // store={certificate} alone fails with "/store/keyPair: error.path.missing"
+      // (400). Always emit keyPair: empty {} on update means "keep the stored
+      // private key" (server's updateWithSecret copies the previous keyPair).
       const store: Record<string, unknown> = {
         certificate: args.certificate,
+        keyPair: args.key_pair ?? {},
       };
-      if (args.key_pair !== undefined) store['keyPair'] = args.key_pair;
       body['store'] = store;
       break;
     }
   }
+  const triggers = buildTriggers(args.triggers);
+  if (triggers !== undefined) body['triggers'] = triggers;
   return body;
 }
 

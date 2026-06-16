@@ -106,7 +106,9 @@ const qcStatementSchema = z
     eTSIPDS: z.record(z.string(), z.string()).optional(),
     eTSITransactionLimit: z
       .object({
-        valueLimit: z.number(),
+        // Scala QCTransactionLimit takes Int for both (server: error.expected.int
+        // on a float). currencyCode must be 3 uppercase chars (server-enforced).
+        valueLimit: z.number().int(),
         valueLimitExp: z.number().int(),
         currencyCode: z.string(),
       })

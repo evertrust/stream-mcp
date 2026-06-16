@@ -49,15 +49,34 @@ const SIGNER_ROUTE = '/api/v1/ocsp/signers';
 const CA_GET = (ca: string) => `/api/v1/cas/${encodePathSegment(ca)}`;
 const CA_PUT = '/api/v1/cas';
 // Server-managed / asymmetric CA fields to strip before the full-replace PUT.
+//
+// IMPORTANT: `privateKey` and `dn` MUST survive the GET-strip-merge-PUT cycle:
+//   - `privateKey` is a NON-optional field on a managed CA; the PUT body is
+//     deserialized into the CA model BEFORE `updateFrom(previous)` runs, so a
+//     missing privateKey fails JSON validation with CA-002
+//     "/privateKey: error.path.missing" (verified live on both a certificated CA
+//     and a managed-pending CA). For a certificated CA the server then keeps the
+//     previous keystore/key (only usePSS/hashAlgorithm from the body are applied),
+//     so echoing the GET's privateKey is safe.
+//   - `dn` is mandatory for a cert-less (pending) CA ("dn is mandatory when
+//     certificate is not specified"); echoing the GET's dn satisfies the
+//     invariant. For a certificated CA the GET omits dn (None) and the server
+//     forces it None, so keeping it out of the strip set is harmless either way.
+//
+// Only genuinely server-managed / rich-on-read fields are stripped:
+//   - certificate: rich object on read / write-only PEM; updateFrom keeps the
+//     previous certificate regardless of the body.
+//   - altPrivateKey: optional; server keeps the previous for a certificated CA.
+//   - revoked/revocationDate/revocationReason: server-managed; updateFrom resets
+//     them to None on update.
+//   - id: server-generated (taken from the previous record).
 const CA_STRIP_FIELDS = [
   'certificate',
-  'privateKey',
   'altPrivateKey',
   'revoked',
   'revocationDate',
   'revocationReason',
   'id',
-  'dn',
 ] as const;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });

@@ -311,7 +311,7 @@ describe('CSR + CA assignment', () => {
     expect(result.content[0].text).toContain('BEGIN CERTIFICATE REQUEST');
   });
 
-  it('assign_ocsp_signer_to_ca GETs the CA, strips key/cert fields, PUTs enableOCSP+ocspSigner', async () => {
+  it('assign_ocsp_signer_to_ca GETs the CA, strips only server-managed fields, PRESERVES privateKey+dn, PUTs enableOCSP+ocspSigner', async () => {
     const { client, invoke } = setup();
     client.get.mockResolvedValue({
       id: 'ca-id',
@@ -337,19 +337,24 @@ describe('CSR + CA assignment', () => {
     // overrides applied
     expect(putBody.enableOCSP).toBe(true);
     expect(putBody.ocspSigner).toBe('LME-OCSP-SIGNER');
-    // server-managed / asymmetric fields stripped
+    // server-managed / rich-on-read fields stripped
     for (const stripped of [
       'id',
       'certificate',
-      'privateKey',
       'altPrivateKey',
       'revoked',
       'revocationDate',
       'revocationReason',
-      'dn',
     ]) {
       expect(putBody[stripped]).toBeUndefined();
     }
+    // privateKey + dn MUST survive: the CA PUT deserializes into the model
+    // (privateKey is non-optional, dn is mandatory cert-less) BEFORE
+    // updateFrom() runs; stripping them yields CA-002 "/privateKey:
+    // error.path.missing" (verified live). The server keeps the previous
+    // privateKey / forces dn None for a certificated CA.
+    expect(putBody.privateKey).toEqual({ keystore: 'KS', name: 'K' });
+    expect(putBody.dn).toBe('CN=ASA-RCA');
     // benign fields preserved
     expect(putBody.name).toBe('ASA-RCA');
     expect(putBody.type).toBe('managed');
@@ -357,5 +362,38 @@ describe('CSR + CA assignment', () => {
     const body = parseText(result);
     expect(body.status).toBe('updated');
     expect(body.kind).toBe('ca');
+  });
+
+  it('assign_ocsp_signer_to_ca keeps the mandatory privateKey+dn for a managed-pending CA (CA-002 guard)', async () => {
+    // Regression: a managed-pending CA (no certificate) requires both privateKey
+    // and dn on the PUT. The previous strip set dropped them and the server
+    // rejected the assign with CA-002 "/privateKey: error.path.missing".
+    const { client, invoke } = setup();
+    client.get.mockResolvedValue({
+      id: 'ca-id',
+      name: 'mcpx-revocation-ca',
+      type: 'managed',
+      trustedForClientAuthentication: false,
+      trustedForServerAuthentication: false,
+      enroll: false,
+      dn: 'CN=mcpx-revocation-ca, C=FR',
+      privateKey: { keystore: 'KS', name: 'K', hashAlgorithm: 'SHA256' },
+      enforceKeyUnicity: false,
+    });
+    client.put.mockImplementation(async (_p: string, body: any) => body);
+    await invoke('assign_ocsp_signer_to_ca', {
+      ca: 'mcpx-revocation-ca',
+      ocsp_signer: 'mcpx-revocation-signer',
+    });
+    const putBody = client.put.mock.calls[0][1];
+    expect(putBody.privateKey).toEqual({
+      keystore: 'KS',
+      name: 'K',
+      hashAlgorithm: 'SHA256',
+    });
+    expect(putBody.dn).toBe('CN=mcpx-revocation-ca, C=FR');
+    expect(putBody.enableOCSP).toBe(true);
+    expect(putBody.ocspSigner).toBe('mcpx-revocation-signer');
+    expect(putBody.id).toBeUndefined();
   });
 });

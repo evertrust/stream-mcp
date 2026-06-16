@@ -13,6 +13,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerTool } from '../register.js';
 import {
   DATA_SOURCING_STRATEGIES,
+  EMPTY_EXTENSION_TYPES,
   EXTENSION_TYPES,
   KEY_USAGE_ELEMENTS,
   LIFECYCLE_PERMISSIONS,
@@ -42,8 +43,10 @@ const KU_SCHEMA = z
 const EKU_ELEMENT_SCHEMA = z
   .object({
     name: z.string(),
-    oid: z.string(),
-    custom: z.boolean().optional(),
+    oid: z.string().describe('A valid OID, e.g. 1.3.6.1.5.5.7.3.1.'),
+    // The server uses Json.format (not useDefaults) for ExtendedKeyUsageElement,
+    // so `custom` is REQUIRED on the wire (omitting it -> 400 path.missing).
+    custom: z.boolean(),
   })
   .strict();
 
@@ -54,14 +57,31 @@ const EKU_SCHEMA = z
   })
   .strict();
 
+const AIA_SCHEMA = z
+  .object({
+    certificate: z.array(z.string()).optional(),
+    ocsp: z.array(z.string()).optional(),
+  })
+  .strict();
+
+const POLICY_SCHEMA = z
+  .object({
+    oid: z.string().describe('A valid certificate-policy OID.'),
+    cpsPointer: z.string().optional(),
+    organization: z.string().optional(),
+    noticeNumbers: z.array(z.number().int()).optional(),
+    explicitText: z.string().optional(),
+  })
+  .strict();
+
 const TEMPLATE_OVERRIDES_SCHEMA = z
   .object({
     ku: KU_SCHEMA.optional(),
     eku: EKU_SCHEMA.optional(),
-    empty_extensions: z.array(z.string()).optional(),
+    empty_extensions: z.array(z.enum(EMPTY_EXTENSION_TYPES)).optional(),
     crldps: z.array(z.string()).optional(),
-    aia: z.record(z.string(), z.unknown()).optional(),
-    policy: z.array(z.record(z.string(), z.unknown())).optional(),
+    aia: AIA_SCHEMA.optional(),
+    policy: z.array(POLICY_SCHEMA).optional(),
     path_len: z.number().int().optional(),
     lifetime: z
       .string()

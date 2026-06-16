@@ -46,6 +46,10 @@ export const EXTENSION_TYPES = [
   'ms_template_v2',
 ] as const;
 
+// X509CertificateEmptyExtensionType for enroll template.emptyExtensions[].
+// Only one value exists in the server enum.
+export const EMPTY_EXTENSION_TYPES = ['no_revocation_check'] as const;
+
 // KeyUsageElement for enroll template.ku.values[].
 export const KEY_USAGE_ELEMENTS = [
   'digitalSignature',

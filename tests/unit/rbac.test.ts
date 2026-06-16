@@ -361,6 +361,55 @@ describe('credentials', () => {
     });
   });
 
+  it('maps triggers.on_credentials_expiration -> triggers.onCredentialsExpiration', async () => {
+    const { client, tool } = setup();
+    client.post.mockResolvedValue({});
+    await tool('create_credential').h({
+      type: 'password',
+      name: 'pw',
+      target: 'rest',
+      login: 'u',
+      password: { clear: 's' },
+      triggers: { on_credentials_expiration: ['T1', 'T2'] },
+    });
+    expect(client.post).toHaveBeenCalledWith('/api/v1/security/credentials', {
+      type: 'password',
+      name: 'pw',
+      target: 'rest',
+      login: 'u',
+      password: { clear: 's' },
+      triggers: { onCredentialsExpiration: ['T1', 'T2'] },
+    });
+  });
+
+  it('x509 always emits store.keyPair (empty {} when key_pair omitted)', async () => {
+    // SecretStore.keyPair is a REQUIRED JSON field server-side; store={certificate}
+    // alone is rejected with "/store/keyPair: error.path.missing". On update the
+    // user omits key_pair to keep the stored key -> must still send keyPair:{}.
+    const { client, tool } = setup();
+    client.get.mockResolvedValue({
+      id: 'x',
+      type: 'x509',
+      name: 'cert',
+      target: 'stream',
+      store: { certificate: 'C', keyPair: {} },
+      expires: '2027-01-01T00:00:00Z',
+    });
+    client.put.mockResolvedValue({});
+    await tool('update_credential').h({
+      type: 'x509',
+      name: 'cert',
+      target: 'stream',
+      certificate: '-----BEGIN CERTIFICATE-----',
+    });
+    expect(client.put).toHaveBeenCalledWith('/api/v1/security/credentials', {
+      type: 'x509',
+      name: 'cert',
+      target: 'stream',
+      store: { certificate: '-----BEGIN CERTIFICATE-----', keyPair: {} },
+    });
+  });
+
   it('rejects an invalid type->target combination', async () => {
     const { client, tool } = setup();
     // raw only allows gcp/rest; aws is invalid -> zod enum rejects at parse, but
