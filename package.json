@@ -2,6 +2,7 @@
   "name": "@evertrust/stream-mcp",
   "version": "0.1.0",
   "description": "MCP server for Evertrust Stream 2.1 (PKI: CA, VA/OCSP, TSA, SSH)",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": { "stream-mcp": "dist/index.js" },
   "files": ["dist"],

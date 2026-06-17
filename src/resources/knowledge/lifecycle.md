@@ -31,7 +31,7 @@ Optional DN / SAN / extension overrides (all gated by the CA's `overridePermissi
 - `csr` — extract DN/SAN/extensions from the CSR.
 - `apicsr` — use request-body values where present, else fall back to the CSR.
 
-Owner / labels / metadata / contact do **NOT** exist on this request model (the Stream request model does not carry them).
+Owner / labels / metadata / contact fields do **NOT** exist on this request model — the Stream X509 enroll request does not carry them.
 
 Example (DN from request body):
 

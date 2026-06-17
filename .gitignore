@@ -8,6 +8,9 @@ node_modules/
 bun.lock
 .npmrc
 
+# Local working notes under docs/ subfolders (never committed)
+docs/*/
+
 # Build output
 dist/
 *.tsbuildinfo
