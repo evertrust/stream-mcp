@@ -1,0 +1,857 @@
+{
+  "generatedAt": "2026-06-17T15:56:03.933Z",
+  "sourceRoot": "../stream",
+  "routeCount": 170,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "sourceFile": "../stream/conf/routes"
+    },
+    {
+      "method": "GET",
+      "path": "/{file}",
+      "sourceFile": "../stream/conf/routes"
+    },
+    {
+      "method": "GET",
+      "path": "/aias/{ca}",
+      "sourceFile": "../stream/conf/aia.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adoc",
+      "sourceFile": "../stream/conf/api.adoc.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cas",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cas",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/cas",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/cas/{name}",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cas/{name}",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/cas/{name}",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cas/{name}/crl",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cas/{name}/crl",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cas/{name}/csr",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cas/{name}/enhance",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cas/{name}/issue",
+      "sourceFile": "../stream/conf/api.x509.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/certificates/{id}",
+      "sourceFile": "../stream/conf/api.x509.certificate.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/certificates/aggregate",
+      "sourceFile": "../stream/conf/api.x509.certificate.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/certificates/search",
+      "sourceFile": "../stream/conf/api.x509.certificate.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crls",
+      "sourceFile": "../stream/conf/api.x509.crl.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crls/{ca}",
+      "sourceFile": "../stream/conf/api.x509.crl.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/crls/{ca}",
+      "sourceFile": "../stream/conf/api.x509.crl.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/hsms/{library}",
+      "sourceFile": "../stream/conf/api.crypto.hsm.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/hsms/{library}/slots",
+      "sourceFile": "../stream/conf/api.crypto.hsm.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/crypto/keys",
+      "sourceFile": "../stream/conf/api.crypto.key.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/keys/{keystoreName}",
+      "sourceFile": "../stream/conf/api.crypto.key.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/crypto/keys/{keystoreName}",
+      "sourceFile": "../stream/conf/api.crypto.key.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/crypto/keys/{keystoreName}/{keyName}",
+      "sourceFile": "../stream/conf/api.crypto.key.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/keys/{keystoreName}/{keyName}",
+      "sourceFile": "../stream/conf/api.crypto.key.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/keystores",
+      "sourceFile": "../stream/conf/api.crypto.keystore.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/crypto/keystores",
+      "sourceFile": "../stream/conf/api.crypto.keystore.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/crypto/keystores",
+      "sourceFile": "../stream/conf/api.crypto.keystore.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/crypto/keystores/{name}",
+      "sourceFile": "../stream/conf/api.crypto.keystore.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/crypto/keystores/{name}",
+      "sourceFile": "../stream/conf/api.crypto.keystore.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dictionaries/dns",
+      "sourceFile": "../stream/conf/api.dictionary.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dictionaries/keys",
+      "sourceFile": "../stream/conf/api.dictionary.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dictionaries/sans",
+      "sourceFile": "../stream/conf/api.dictionary.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/events/{id}",
+      "sourceFile": "../stream/conf/api.event.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/events/integrity",
+      "sourceFile": "../stream/conf/api.event.integrity.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/events/integrity/run",
+      "sourceFile": "../stream/conf/api.event.integrity.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/events/search",
+      "sourceFile": "../stream/conf/api.event.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/events/search/dictionary",
+      "sourceFile": "../stream/conf/api.event.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/extension/ekus",
+      "sourceFile": "../stream/conf/api.x509.extension.eku.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/extension/ekus",
+      "sourceFile": "../stream/conf/api.x509.extension.eku.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/extension/ekus",
+      "sourceFile": "../stream/conf/api.x509.extension.eku.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/extension/ekus/{oid}",
+      "sourceFile": "../stream/conf/api.x509.extension.eku.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/extension/ekus/{oid}",
+      "sourceFile": "../stream/conf/api.x509.extension.eku.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/licenses",
+      "sourceFile": "../stream/conf/api.license.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/licenses/modules",
+      "sourceFile": "../stream/conf/api.license.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/lifecycle/enroll",
+      "sourceFile": "../stream/conf/api.x509.lifecycle.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/lifecycle/revoke",
+      "sourceFile": "../stream/conf/api.x509.lifecycle.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/lifecycle/templates",
+      "sourceFile": "../stream/conf/api.x509.lifecycle.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ocsp/signers",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ocsp/signers",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/ocsp/signers",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/ocsp/signers/{name}",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ocsp/signers/{name}",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ocsp/signers/{name}/csr",
+      "sourceFile": "../stream/conf/api.ocsp.signer.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/openssh/pubkey",
+      "sourceFile": "../stream/conf/api.openssh.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/openssh/pubkey/{pem}",
+      "sourceFile": "../stream/conf/api.openssh.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/queues",
+      "sourceFile": "../stream/conf/api.queue.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/queues",
+      "sourceFile": "../stream/conf/api.queue.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/queues",
+      "sourceFile": "../stream/conf/api.queue.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/queues/{name}",
+      "sourceFile": "../stream/conf/api.queue.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/queues/{name}",
+      "sourceFile": "../stream/conf/api.queue.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/crl",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/rfc5280/crl/{pem}",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/detect",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/pkcs10",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/rfc5280/pkcs10/{pem}",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/pkcs12",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/tc",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/rfc5280/tc/{pem}",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/rfc5280/x509",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/rfc5280/x509/{pem}",
+      "sourceFile": "../stream/conf/api.rfc5280.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/credentials",
+      "sourceFile": "../stream/conf/api.security.credential.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/credentials",
+      "sourceFile": "../stream/conf/api.security.credential.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/security/credentials",
+      "sourceFile": "../stream/conf/api.security.credential.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/security/credentials/{name}",
+      "sourceFile": "../stream/conf/api.security.credential.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/credentials/{name}",
+      "sourceFile": "../stream/conf/api.security.credential.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/locals",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/identity/locals",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/security/identity/locals",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/security/identity/locals/{identifier}",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/locals/{identifier}",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/locals/{identifier}/resetpassword",
+      "sourceFile": "../stream/conf/api.security.identity.local.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/providers",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/identity/providers",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/security/identity/providers",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/security/identity/providers/{name}",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/providers/{name}",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/identity/providers/dynamic/enabled",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/identity/providers/search",
+      "sourceFile": "../stream/conf/api.security.identity.provider.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/principalinfos",
+      "sourceFile": "../stream/conf/api.security.principalinfo.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/security/principalinfos",
+      "sourceFile": "../stream/conf/api.security.principalinfo.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/security/principalinfos/{identifier}",
+      "sourceFile": "../stream/conf/api.security.principalinfo.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/principalinfos/{identifier}",
+      "sourceFile": "../stream/conf/api.security.principalinfo.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/principalinfos/search",
+      "sourceFile": "../stream/conf/api.security.principalinfo.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/principals/authenticate",
+      "sourceFile": "../stream/conf/api.security.principal.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/principals/logout",
+      "sourceFile": "../stream/conf/api.security.principal.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/principals/self",
+      "sourceFile": "../stream/conf/api.security.principal.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/roles",
+      "sourceFile": "../stream/conf/api.security.role.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/security/roles",
+      "sourceFile": "../stream/conf/api.security.role.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/security/roles",
+      "sourceFile": "../stream/conf/api.security.role.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/security/roles/{name}",
+      "sourceFile": "../stream/conf/api.security.role.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/roles/{name}",
+      "sourceFile": "../stream/conf/api.security.role.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/cas",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/cas",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/ssh/cas",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/ssh/cas/{name}",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/cas/{name}",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/cas/{name}/krl",
+      "sourceFile": "../stream/conf/api.ssh.ca.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/certificates/{id}",
+      "sourceFile": "../stream/conf/api.ssh.certificate.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/certificates/aggregate",
+      "sourceFile": "../stream/conf/api.ssh.certificate.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/certificates/search",
+      "sourceFile": "../stream/conf/api.ssh.certificate.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/krls",
+      "sourceFile": "../stream/conf/api.ssh.krl.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/krls/{ca}",
+      "sourceFile": "../stream/conf/api.ssh.krl.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/lifecycle/enroll",
+      "sourceFile": "../stream/conf/api.ssh.lifecycle.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/lifecycle/revoke",
+      "sourceFile": "../stream/conf/api.ssh.lifecycle.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/lifecycle/templates",
+      "sourceFile": "../stream/conf/api.ssh.lifecycle.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/templates",
+      "sourceFile": "../stream/conf/api.ssh.template.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ssh/templates",
+      "sourceFile": "../stream/conf/api.ssh.template.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/ssh/templates",
+      "sourceFile": "../stream/conf/api.ssh.template.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/ssh/templates/{name}",
+      "sourceFile": "../stream/conf/api.ssh.template.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ssh/templates/{name}",
+      "sourceFile": "../stream/conf/api.ssh.template.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/configuration",
+      "sourceFile": "../stream/conf/api.system.configuration.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/system/configuration",
+      "sourceFile": "../stream/conf/api.system.configuration.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/configuration/{type}",
+      "sourceFile": "../stream/conf/api.system.configuration.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/proxies",
+      "sourceFile": "../stream/conf/api.system.proxy.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/proxies",
+      "sourceFile": "../stream/conf/api.system.proxy.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/system/proxies",
+      "sourceFile": "../stream/conf/api.system.proxy.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/system/proxies/{name}",
+      "sourceFile": "../stream/conf/api.system.proxy.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/proxies/{name}",
+      "sourceFile": "../stream/conf/api.system.proxy.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/templates",
+      "sourceFile": "../stream/conf/api.x509.template.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/templates",
+      "sourceFile": "../stream/conf/api.x509.template.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/templates",
+      "sourceFile": "../stream/conf/api.x509.template.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/templates/{name}",
+      "sourceFile": "../stream/conf/api.x509.template.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/templates/{name}",
+      "sourceFile": "../stream/conf/api.x509.template.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/authorities",
+      "sourceFile": "../stream/conf/api.timestamping.authority.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/timestamping/authorities",
+      "sourceFile": "../stream/conf/api.timestamping.authority.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/timestamping/authorities",
+      "sourceFile": "../stream/conf/api.timestamping.authority.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/timestamping/authorities/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.authority.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/authorities/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.authority.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/ntps",
+      "sourceFile": "../stream/conf/api.timestamping.ntp.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/timestamping/ntps",
+      "sourceFile": "../stream/conf/api.timestamping.ntp.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/timestamping/ntps",
+      "sourceFile": "../stream/conf/api.timestamping.ntp.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/timestamping/ntps/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.ntp.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/ntps/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.ntp.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/signers",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/timestamping/signers",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/timestamping/signers",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/timestamping/signers/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/signers/{name}",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/timestamping/signers/{name}/csr",
+      "sourceFile": "../stream/conf/api.timestamping.signer.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/triggers",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/triggers",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/triggers",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/triggers",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/triggers/{name}",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/triggers/{name}",
+      "sourceFile": "../stream/conf/api.trigger.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/trustchains",
+      "sourceFile": "../stream/conf/api.x509.trustchain.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/trustchains/{anchor}",
+      "sourceFile": "../stream/conf/api.x509.trustchain.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/crls/{ca}",
+      "sourceFile": "../stream/conf/crl.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "sourceFile": "../stream/conf/routes"
+    },
+    {
+      "method": "GET",
+      "path": "/krls/{ca}",
+      "sourceFile": "../stream/conf/krl.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/ocsp",
+      "sourceFile": "../stream/conf/ocsp.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/ocsp/{ocspReq}",
+      "sourceFile": "../stream/conf/ocsp.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/security/openid/callback",
+      "sourceFile": "../stream/conf/security.openid.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/tsa",
+      "sourceFile": "../stream/conf/tsa.routes"
+    },
+    {
+      "method": "POST",
+      "path": "/tsa/{name}",
+      "sourceFile": "../stream/conf/tsa.routes"
+    },
+    {
+      "method": "GET",
+      "path": "/ui",
+      "sourceFile": "../stream/conf/routes"
+    }
+  ]
+}

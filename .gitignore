@@ -5,7 +5,7 @@
 
 # Dependencies
 node_modules/
-bun.lock
+package-lock.json
 .npmrc
 
 # Internal/build-time docs (never committed; not used by the server)
@@ -16,6 +16,8 @@ docs/audit
 # Build output
 dist/
 *.tsbuildinfo
+# Transient bun --compile scratch files (build:binary / build:binaries)
+*.bun-build
 
 # Test / coverage
 coverage/

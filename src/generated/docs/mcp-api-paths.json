@@ -1,0 +1,734 @@
+{
+  "generatedAt": "2026-06-17T15:56:03.934Z",
+  "referenceCount": 110,
+  "references": [
+    {
+      "path": "/api/v1/cas",
+      "file": "src/tools/revocation/signers.ts",
+      "line": 50,
+      "rawPath": "/api/v1/cas"
+    },
+    {
+      "path": "/api/v1/cas",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 29,
+      "rawPath": "/api/v1/cas"
+    },
+    {
+      "path": "/api/v1/cas",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 131,
+      "rawPath": "/api/v1/cas",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/cas",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 216,
+      "rawPath": "/api/v1/cas",
+      "method": "PUT"
+    },
+    {
+      "path": "/api/v1/cas/{name}",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 61,
+      "rawPath": "/api/v1/cas/{name}"
+    },
+    {
+      "path": "/api/v1/cas/{param}",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 172,
+      "rawPath": "/api/v1/cas/${encodePathSegment(config.name)}"
+    },
+    {
+      "path": "/api/v1/cas/{param}",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 173,
+      "rawPath": "/api/v1/cas/${encodePathSegment(config.name)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/cas/{param}",
+      "file": "src/tools/x509-ca/cas.ts",
+      "line": 181,
+      "rawPath": "/api/v1/cas/${encodePathSegment(config.name)}"
+    },
+    {
+      "path": "/api/v1/certificates/{param}",
+      "file": "src/tools/x509-certificate/certificates.ts",
+      "line": 270,
+      "rawPath": "/api/v1/certificates/${encodePathSegment(args.id)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/certificates/aggregate",
+      "file": "src/tools/x509-certificate/certificates.ts",
+      "line": 234,
+      "rawPath": "/api/v1/certificates/aggregate",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/certificates/search",
+      "file": "src/tools/x509-certificate/certificates.ts",
+      "line": 127,
+      "rawPath": "/api/v1/certificates/search",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/crls",
+      "file": "src/tools/revocation/crls.ts",
+      "line": 27,
+      "rawPath": "/api/v1/crls"
+    },
+    {
+      "path": "/api/v1/crls",
+      "file": "src/tools/revocation/crls.ts",
+      "line": 62,
+      "rawPath": "/api/v1/crls",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crls/{param}",
+      "file": "src/tools/revocation/crls.ts",
+      "line": 87,
+      "rawPath": "/api/v1/crls/${encodePathSegment(ca)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crls/{param}",
+      "file": "src/tools/revocation/crls.ts",
+      "line": 139,
+      "rawPath": "/api/v1/crls/${encodePathSegment(ca)}",
+      "method": "PUT"
+    },
+    {
+      "path": "/api/v1/crypto/hsms",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 30,
+      "rawPath": "/api/v1/crypto/hsms"
+    },
+    {
+      "path": "/api/v1/crypto/hsms/{param}",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 315,
+      "rawPath": "/api/v1/crypto/hsms/${encodePathSegment(library)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crypto/hsms/{param}/slots",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 344,
+      "rawPath": "/api/v1/crypto/hsms/${encodePathSegment(library)}/slots",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crypto/keys",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 29,
+      "rawPath": "/api/v1/crypto/keys"
+    },
+    {
+      "path": "/api/v1/crypto/keys",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 194,
+      "rawPath": "/api/v1/crypto/keys",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/crypto/keys/{param}",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 101,
+      "rawPath": "/api/v1/crypto/keys/${encodePathSegment(keystore)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crypto/keys/{param}",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 281,
+      "rawPath": "/api/v1/crypto/keys/${encodePathSegment(keystore)}",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/crypto/keys/{param}/{param}",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 123,
+      "rawPath": "/api/v1/crypto/keys/${encodePathSegment(keystore)}/${encodePathSegment(key)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/crypto/keys/{param}/{param}",
+      "file": "src/tools/crypto/keys.ts",
+      "line": 240,
+      "rawPath": "/api/v1/crypto/keys/${encodePathSegment(keystore)}/${encodePathSegment(key)}",
+      "method": "DELETE"
+    },
+    {
+      "path": "/api/v1/crypto/keystores",
+      "file": "src/tools/crypto/keystores.ts",
+      "line": 32,
+      "rawPath": "/api/v1/crypto/keystores"
+    },
+    {
+      "path": "/api/v1/crypto/keystores/{name}",
+      "file": "src/tools/crypto/keystores.ts",
+      "line": 33,
+      "rawPath": "/api/v1/crypto/keystores/{name}"
+    },
+    {
+      "path": "/api/v1/dictionaries/dns",
+      "file": "src/tools/system/info.ts",
+      "line": 82,
+      "rawPath": "/api/v1/dictionaries/dns",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/dictionaries/keys",
+      "file": "src/tools/system/info.ts",
+      "line": 65,
+      "rawPath": "/api/v1/dictionaries/keys",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/dictionaries/sans",
+      "file": "src/tools/system/info.ts",
+      "line": 99,
+      "rawPath": "/api/v1/dictionaries/sans",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/events/{param}",
+      "file": "src/tools/events/search.ts",
+      "line": 154,
+      "rawPath": "/api/v1/events/${encodePathSegment(args.id)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/events/integrity",
+      "file": "src/tools/events/integrity.ts",
+      "line": 101,
+      "rawPath": "/api/v1/events/integrity",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/events/integrity/run",
+      "file": "src/tools/events/integrity.ts",
+      "line": 67,
+      "rawPath": "/api/v1/events/integrity/run",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/events/search",
+      "file": "src/tools/events/search.ts",
+      "line": 114,
+      "rawPath": "/api/v1/events/search",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/events/search/dictionary",
+      "file": "src/tools/events/search.ts",
+      "line": 179,
+      "rawPath": "/api/v1/events/search/dictionary",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/extension/ekus",
+      "file": "src/tools/utilities/ekus.ts",
+      "line": 34,
+      "rawPath": "/api/v1/extension/ekus"
+    },
+    {
+      "path": "/api/v1/extension/ekus",
+      "file": "src/tools/utilities/ekus.ts",
+      "line": 98,
+      "rawPath": "/api/v1/extension/ekus",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/extension/ekus",
+      "file": "src/tools/utilities/ekus.ts",
+      "line": 146,
+      "rawPath": "/api/v1/extension/ekus",
+      "method": "PUT"
+    },
+    {
+      "path": "/api/v1/extension/ekus/{oid}",
+      "file": "src/tools/utilities/ekus.ts",
+      "line": 35,
+      "rawPath": "/api/v1/extension/ekus/{oid}"
+    },
+    {
+      "path": "/api/v1/licenses",
+      "file": "src/tools/system/info.ts",
+      "line": 35,
+      "rawPath": "/api/v1/licenses",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/licenses/modules",
+      "file": "src/tools/system/info.ts",
+      "line": 50,
+      "rawPath": "/api/v1/licenses/modules",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/lifecycle/enroll",
+      "file": "src/tools/x509-certificate/lifecycle.ts",
+      "line": 245,
+      "rawPath": "/api/v1/lifecycle/enroll",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/lifecycle/revoke",
+      "file": "src/tools/x509-certificate/lifecycle.ts",
+      "line": 346,
+      "rawPath": "/api/v1/lifecycle/revoke",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/lifecycle/templates",
+      "file": "src/tools/x509-certificate/lifecycle.ts",
+      "line": 394,
+      "rawPath": "/api/v1/lifecycle/templates",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ocsp/signers",
+      "file": "src/tools/revocation/signers.ts",
+      "line": 46,
+      "rawPath": "/api/v1/ocsp/signers"
+    },
+    {
+      "path": "/api/v1/ocsp/signers/{name}",
+      "file": "src/tools/revocation/signers.ts",
+      "line": 89,
+      "rawPath": "/api/v1/ocsp/signers/{name}"
+    },
+    {
+      "path": "/api/v1/ocsp/signers/{param}/csr",
+      "file": "src/tools/revocation/signers.ts",
+      "line": 304,
+      "rawPath": "/api/v1/ocsp/signers/${encodePathSegment(name)}/csr",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/openssh/pubkey",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 208,
+      "rawPath": "/api/v1/openssh/pubkey",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/queues",
+      "file": "src/tools/system/queues.ts",
+      "line": 28,
+      "rawPath": "/api/v1/queues"
+    },
+    {
+      "path": "/api/v1/queues/{name}",
+      "file": "src/tools/system/queues.ts",
+      "line": 29,
+      "rawPath": "/api/v1/queues/{name}"
+    },
+    {
+      "path": "/api/v1/rfc5280/crl",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 114,
+      "rawPath": "/api/v1/rfc5280/crl",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/rfc5280/detect",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 71,
+      "rawPath": "/api/v1/rfc5280/detect",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/rfc5280/pkcs10",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 135,
+      "rawPath": "/api/v1/rfc5280/pkcs10",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/rfc5280/pkcs12",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 169,
+      "rawPath": "/api/v1/rfc5280/pkcs12",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/rfc5280/x509",
+      "file": "src/tools/utilities/decoders.ts",
+      "line": 92,
+      "rawPath": "/api/v1/rfc5280/x509",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/security/credentials",
+      "file": "src/tools/rbac/credentials.ts",
+      "line": 29,
+      "rawPath": "/api/v1/security/credentials"
+    },
+    {
+      "path": "/api/v1/security/credentials",
+      "file": "src/tools/rbac/credentials.ts",
+      "line": 269,
+      "rawPath": "/api/v1/security/credentials",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/security/credentials",
+      "file": "src/tools/rbac/credentials.ts",
+      "line": 321,
+      "rawPath": "/api/v1/security/credentials",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/security/credentials/{name}",
+      "file": "src/tools/rbac/credentials.ts",
+      "line": 36,
+      "rawPath": "/api/v1/security/credentials/{name}"
+    },
+    {
+      "path": "/api/v1/security/credentials/{param}",
+      "file": "src/tools/rbac/credentials.ts",
+      "line": 295,
+      "rawPath": "/api/v1/security/credentials/${encodePathSegment(name)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/security/identity/locals",
+      "file": "src/tools/rbac/local-identities.ts",
+      "line": 21,
+      "rawPath": "/api/v1/security/identity/locals"
+    },
+    {
+      "path": "/api/v1/security/identity/locals/{identifier}",
+      "file": "src/tools/rbac/local-identities.ts",
+      "line": 28,
+      "rawPath": "/api/v1/security/identity/locals/{identifier}"
+    },
+    {
+      "path": "/api/v1/security/identity/locals/{param}/resetpassword",
+      "file": "src/tools/rbac/local-identities.ts",
+      "line": 135,
+      "rawPath": "/api/v1/security/identity/locals/${encodePathSegment(id)}/resetpassword",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/security/identity/providers",
+      "file": "src/tools/rbac/identity-providers.ts",
+      "line": 22,
+      "rawPath": "/api/v1/security/identity/providers"
+    },
+    {
+      "path": "/api/v1/security/identity/providers",
+      "file": "src/tools/rbac/identity-providers.ts",
+      "line": 180,
+      "rawPath": "/api/v1/security/identity/providers",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/security/identity/providers/{name}",
+      "file": "src/tools/rbac/identity-providers.ts",
+      "line": 29,
+      "rawPath": "/api/v1/security/identity/providers/{name}"
+    },
+    {
+      "path": "/api/v1/security/principalinfos",
+      "file": "src/tools/rbac/principal-infos.ts",
+      "line": 24,
+      "rawPath": "/api/v1/security/principalinfos"
+    },
+    {
+      "path": "/api/v1/security/principalinfos",
+      "file": "src/tools/rbac/principal-infos.ts",
+      "line": 99,
+      "rawPath": "/api/v1/security/principalinfos",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/security/principalinfos/{identifier}",
+      "file": "src/tools/rbac/principal-infos.ts",
+      "line": 31,
+      "rawPath": "/api/v1/security/principalinfos/{identifier}"
+    },
+    {
+      "path": "/api/v1/security/principalinfos/{param}",
+      "file": "src/tools/rbac/principal-infos.ts",
+      "line": 61,
+      "rawPath": "/api/v1/security/principalinfos/${encodePathSegment(identifier)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/security/principalinfos/search",
+      "file": "src/tools/rbac/principal-infos.ts",
+      "line": 251,
+      "rawPath": "/api/v1/security/principalinfos/search",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/security/principals/self",
+      "file": "src/tools/rbac/whoami.ts",
+      "line": 29,
+      "rawPath": "/api/v1/security/principals/self",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/security/roles",
+      "file": "src/tools/rbac/roles.ts",
+      "line": 23,
+      "rawPath": "/api/v1/security/roles"
+    },
+    {
+      "path": "/api/v1/security/roles/{name}",
+      "file": "src/tools/rbac/roles.ts",
+      "line": 24,
+      "rawPath": "/api/v1/security/roles/{name}"
+    },
+    {
+      "path": "/api/v1/ssh/cas",
+      "file": "src/tools/ssh/cas.ts",
+      "line": 239,
+      "rawPath": "/api/v1/ssh/cas"
+    },
+    {
+      "path": "/api/v1/ssh/cas/{name}",
+      "file": "src/tools/ssh/cas.ts",
+      "line": 240,
+      "rawPath": "/api/v1/ssh/cas/{name}"
+    },
+    {
+      "path": "/api/v1/ssh/cas/{param}/krl",
+      "file": "src/tools/ssh/krl.ts",
+      "line": 47,
+      "rawPath": "/api/v1/ssh/cas/${encodePathSegment(args.name)}/krl",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ssh/certificates/{param}",
+      "file": "src/tools/ssh/certificates.ts",
+      "line": 280,
+      "rawPath": "/api/v1/ssh/certificates/${encodePathSegment(args.id)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ssh/certificates/aggregate",
+      "file": "src/tools/ssh/certificates.ts",
+      "line": 243,
+      "rawPath": "/api/v1/ssh/certificates/aggregate",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/ssh/certificates/search",
+      "file": "src/tools/ssh/certificates.ts",
+      "line": 135,
+      "rawPath": "/api/v1/ssh/certificates/search",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/ssh/krls",
+      "file": "src/tools/ssh/krl.ts",
+      "line": 91,
+      "rawPath": "/api/v1/ssh/krls",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ssh/krls/{param}",
+      "file": "src/tools/ssh/krl.ts",
+      "line": 118,
+      "rawPath": "/api/v1/ssh/krls/${encodePathSegment(args.ca)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ssh/lifecycle/enroll",
+      "file": "src/tools/ssh/lifecycle.ts",
+      "line": 105,
+      "rawPath": "/api/v1/ssh/lifecycle/enroll",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/ssh/lifecycle/revoke",
+      "file": "src/tools/ssh/lifecycle.ts",
+      "line": 198,
+      "rawPath": "/api/v1/ssh/lifecycle/revoke",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/ssh/lifecycle/templates",
+      "file": "src/tools/ssh/lifecycle.ts",
+      "line": 246,
+      "rawPath": "/api/v1/ssh/lifecycle/templates",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/ssh/templates",
+      "file": "src/tools/ssh/templates.ts",
+      "line": 98,
+      "rawPath": "/api/v1/ssh/templates"
+    },
+    {
+      "path": "/api/v1/ssh/templates/{name}",
+      "file": "src/tools/ssh/templates.ts",
+      "line": 99,
+      "rawPath": "/api/v1/ssh/templates/{name}"
+    },
+    {
+      "path": "/api/v1/system/configuration",
+      "file": "src/tools/system/configuration.ts",
+      "line": 27,
+      "rawPath": "/api/v1/system/configuration"
+    },
+    {
+      "path": "/api/v1/system/configuration",
+      "file": "src/tools/system/configuration.ts",
+      "line": 106,
+      "rawPath": "/api/v1/system/configuration",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/system/configuration",
+      "file": "src/tools/system/configuration.ts",
+      "line": 156,
+      "rawPath": "/api/v1/system/configuration",
+      "method": "PUT"
+    },
+    {
+      "path": "/api/v1/system/configuration/{param}",
+      "file": "src/tools/system/configuration.ts",
+      "line": 127,
+      "rawPath": "/api/v1/system/configuration/${encodePathSegment(type)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/system/proxies",
+      "file": "src/tools/system/proxies.ts",
+      "line": 25,
+      "rawPath": "/api/v1/system/proxies"
+    },
+    {
+      "path": "/api/v1/system/proxies/{name}",
+      "file": "src/tools/system/proxies.ts",
+      "line": 26,
+      "rawPath": "/api/v1/system/proxies/{name}"
+    },
+    {
+      "path": "/api/v1/templates",
+      "file": "src/tools/x509-template/index.ts",
+      "line": 39,
+      "rawPath": "/api/v1/templates"
+    },
+    {
+      "path": "/api/v1/templates/{name}",
+      "file": "src/tools/x509-template/index.ts",
+      "line": 40,
+      "rawPath": "/api/v1/templates/{name}"
+    },
+    {
+      "path": "/api/v1/timestamping/authorities",
+      "file": "src/tools/tsa/authorities.ts",
+      "line": 29,
+      "rawPath": "/api/v1/timestamping/authorities"
+    },
+    {
+      "path": "/api/v1/timestamping/authorities/{name}",
+      "file": "src/tools/tsa/authorities.ts",
+      "line": 36,
+      "rawPath": "/api/v1/timestamping/authorities/{name}"
+    },
+    {
+      "path": "/api/v1/timestamping/ntps",
+      "file": "src/tools/tsa/ntps.ts",
+      "line": 28,
+      "rawPath": "/api/v1/timestamping/ntps"
+    },
+    {
+      "path": "/api/v1/timestamping/ntps/{name}",
+      "file": "src/tools/tsa/ntps.ts",
+      "line": 35,
+      "rawPath": "/api/v1/timestamping/ntps/{name}"
+    },
+    {
+      "path": "/api/v1/timestamping/signers",
+      "file": "src/tools/tsa/signers.ts",
+      "line": 40,
+      "rawPath": "/api/v1/timestamping/signers"
+    },
+    {
+      "path": "/api/v1/timestamping/signers/{name}",
+      "file": "src/tools/tsa/signers.ts",
+      "line": 49,
+      "rawPath": "/api/v1/timestamping/signers/{name}"
+    },
+    {
+      "path": "/api/v1/timestamping/signers/{param}/csr",
+      "file": "src/tools/tsa/signers.ts",
+      "line": 258,
+      "rawPath": "/api/v1/timestamping/signers/${encodePathSegment(name)}/csr",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/triggers",
+      "file": "src/tools/triggers/index.ts",
+      "line": 36,
+      "rawPath": "/api/v1/triggers"
+    },
+    {
+      "path": "/api/v1/triggers",
+      "file": "src/tools/triggers/index.ts",
+      "line": 92,
+      "rawPath": "/api/v1/triggers",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/triggers",
+      "file": "src/tools/triggers/index.ts",
+      "line": 160,
+      "rawPath": "/api/v1/triggers",
+      "method": "POST"
+    },
+    {
+      "path": "/api/v1/triggers",
+      "file": "src/tools/triggers/index.ts",
+      "line": 203,
+      "rawPath": "/api/v1/triggers",
+      "method": "PUT"
+    },
+    {
+      "path": "/api/v1/triggers",
+      "file": "src/tools/triggers/index.ts",
+      "line": 285,
+      "rawPath": "/api/v1/triggers",
+      "method": "PATCH"
+    },
+    {
+      "path": "/api/v1/triggers/{param}",
+      "file": "src/tools/triggers/index.ts",
+      "line": 124,
+      "rawPath": "/api/v1/triggers/${encodePathSegment(name)}",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/triggers/{param}",
+      "file": "src/tools/triggers/index.ts",
+      "line": 240,
+      "rawPath": "/api/v1/triggers/${encodePathSegment(name)}",
+      "method": "DELETE"
+    },
+    {
+      "path": "/api/v1/trustchains",
+      "file": "src/tools/utilities/trustchains.ts",
+      "line": 97,
+      "rawPath": "/api/v1/trustchains",
+      "method": "GET"
+    },
+    {
+      "path": "/api/v1/trustchains/{param}",
+      "file": "src/tools/utilities/trustchains.ts",
+      "line": 122,
+      "rawPath": "/api/v1/trustchains/${encodePathSegment(anchor)}",
+      "method": "GET"
+    }
+  ]
+}
