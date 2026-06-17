@@ -18,7 +18,7 @@ const settingsSchema = z.object({
   exportTimeout: z.coerce.number().int().positive().default(120),
   logLevel: z.string().default('INFO'),
   testedVersions: z.array(z.string()).default(['2.1']),
-  warnVersions: z.array(z.string()).default(['2.0', '2.2']),
+  warnVersions: z.array(z.string()).default([]),
 });
 
 export type StreamSettings = z.infer<typeof settingsSchema>;
