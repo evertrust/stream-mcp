@@ -68,6 +68,8 @@ export const LIVE_SCENARIOS: readonly LiveScenario[] = [
     id: 'audit-events',
     question: 'Search the Stream audit log for recent events.',
     acceptablePrimaryTools: ['search_events'],
-    requiredArgs: ['query'],
+    // NB: no requiredArgs — for SEQL the query is OPTIONAL (omitting it is a
+    // valid match-all), unlike SCQL certificate search. Requiring `query` here
+    // would wrongly fail a correct match-all call.
   },
 ] as const;
