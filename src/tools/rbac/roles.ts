@@ -72,7 +72,9 @@ export function registerRoleTools(
 
   registerUpdateTool(server, client, SPEC, {
     description:
-      'Update a role (full-replace: omitted optional fields are reset).\n' +
+      'Update a role. Any optional field you OMIT keeps its current value (the ' +
+      'tool fetches the existing record and merges your changes); use ' +
+      'clear_fields to explicitly null an optional field (e.g. description).\n' +
       PERMISSION_GRAMMAR,
     inputSchema: z.object({
       name: z.string().describe('Role name to update (immutable key).'),

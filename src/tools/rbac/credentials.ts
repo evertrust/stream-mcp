@@ -77,64 +77,103 @@ function buildTriggers(
 }
 
 const passwordCred = z.object({
-  type: z.literal('password'),
-  name: z.string().describe('Immutable credential name (primary key).'),
+  type: z
+    .literal('password')
+    .describe('Discriminator: password credential (login + password secret).'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable credential name (primary key).'),
   target: z
     .enum(CREDENTIALS_TYPE_TARGETS.password)
-    .describe('Credential target (immutable after create).'),
-  description: z.string().optional(),
-  login: z.string().describe('Login / username.'),
-  password: secretObject.optional(),
+    .describe(
+      'MANDATORY. Credential target (immutable after create). One of: ' +
+        `${CREDENTIALS_TYPE_TARGETS.password.join(', ')}.`,
+    ),
+  description: z.string().optional().describe('Optional human description.'),
+  login: z.string().describe('MANDATORY. Login / username.'),
+  password: secretObject
+    .optional()
+    .describe(
+      'Write-only password secret ({clear: "<secret>"}). Required on create to ' +
+        'set the secret; omit on update to keep the stored one.',
+    ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
 });
 
 const rawCred = z.object({
-  type: z.literal('raw'),
-  name: z.string().describe('Immutable credential name (primary key).'),
+  type: z
+    .literal('raw')
+    .describe('Discriminator: raw credential (single opaque secret).'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable credential name (primary key).'),
   target: z
     .enum(CREDENTIALS_TYPE_TARGETS.raw)
-    .describe('Credential target (immutable after create).'),
-  description: z.string().optional(),
-  secret: secretObject.optional(),
+    .describe(
+      'MANDATORY. Credential target (immutable after create). One of: ' +
+        `${CREDENTIALS_TYPE_TARGETS.raw.join(', ')}.`,
+    ),
+  description: z.string().optional().describe('Optional human description.'),
+  secret: secretObject
+    .optional()
+    .describe(
+      'Write-only secret ({clear: "<secret>"}). Required on create to set the ' +
+        'secret; omit on update to keep the stored one.',
+    ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
 });
 
 const sshCred = z.object({
-  type: z.literal('ssh'),
-  name: z.string().describe('Immutable credential name (primary key).'),
+  type: z
+    .literal('ssh')
+    .describe('Discriminator: SSH key credential (login + private key).'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable credential name (primary key).'),
   target: z
     .enum(CREDENTIALS_TYPE_TARGETS.ssh)
     .default('ssh')
-    .describe('Credential target (ssh only).'),
-  description: z.string().optional(),
-  login: z.string().describe('Login / username.'),
+    .describe('Credential target (ssh only; defaults to "ssh").'),
+  description: z.string().optional().describe('Optional human description.'),
+  login: z.string().describe('MANDATORY. Login / username.'),
   key: secretObject
     .optional()
     .describe(
-      'Write-only SSH private key ({clear: "<PEM>"}); validated as a parseable key.',
+      'Write-only SSH private key ({clear: "<PEM>"}); validated as a parseable ' +
+        'key. Required on create; omit on update to keep the stored key.',
     ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
 });
 
 const x509Cred = z.object({
-  type: z.literal('x509'),
-  name: z.string().describe('Immutable credential name (primary key).'),
+  type: z
+    .literal('x509')
+    .describe('Discriminator: X509 credential (certificate + key pair).'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable credential name (primary key).'),
   target: z
     .enum(CREDENTIALS_TYPE_TARGETS.x509)
-    .describe('Credential target (immutable after create).'),
-  description: z.string().optional(),
+    .describe(
+      'MANDATORY. Credential target (immutable after create). One of: ' +
+        `${CREDENTIALS_TYPE_TARGETS.x509.join(', ')}.`,
+    ),
+  description: z.string().optional().describe('Optional human description.'),
   certificate: z
     .string()
-    .describe('Certificate PEM string (goes into store.certificate).'),
+    .describe(
+      'MANDATORY. Certificate PEM string (goes into store.certificate).',
+    ),
   key_pair: secretObject
     .optional()
     .describe(
       'Write-only private key ({clear: "<PEM>"}); must match the certificate ' +
         'public key. REQUIRED on create (the server rejects an x509 credential ' +
-        'with no key). Omit on update to keep the stored key.',
+        'with no key). Omit on update to keep the stored key. ' +
+        '(expires is server-managed from the cert notAfter - do not send it.)',
     ),
   triggers: credentialTriggers.optional(),
 });
@@ -267,6 +306,12 @@ export function registerCredentialTools(
         'write-only: send {clear: "..."}; responses redact them. Valid ' +
         'type->target combos: password->akv/aws/ldap/openid/rest/ssh/stream; ' +
         'raw->gcp/rest; ssh->ssh; x509->rest/stream.\n' +
+        'MANDATORY by type (ask the user; do not infer or invent):\n' +
+        '  - all: type, name, target.\n' +
+        '  - password: also login + password ({clear}).\n' +
+        '  - raw: also secret ({clear}).\n' +
+        '  - ssh: also login + key ({clear: "<PEM>"}).\n' +
+        '  - x509: also certificate (PEM) + key_pair ({clear: "<PEM>"}).\n' +
         'Safety tier: mutating-safe\nIMPORTANT: name + target are immutable - ' +
         'ask the user; never invent them.',
       inputSchema: credentialInput,
@@ -292,7 +337,12 @@ export function registerCredentialTools(
       description:
         'Update a credential (full-replace via PUT, lookup by name). `target` ' +
         'cannot change. Omit a secret to keep the stored one; supply {clear} to ' +
-        'rotate it.\nSafety tier: mutating-safe\nIMPORTANT: name + target are immutable.',
+        'rotate it.\n' +
+        'MANDATORY (lookup key + non-secret type fields - ask the user; do not ' +
+        'infer): type, name, target; plus login for password/ssh and ' +
+        'certificate for x509. Secret fields (password/secret/key/key_pair) are ' +
+        'OPTIONAL on update - omit to keep the stored secret.\n' +
+        'Safety tier: mutating-safe\nIMPORTANT: name + target are immutable.',
       inputSchema: credentialInput,
     },
     async (args) => {

@@ -184,10 +184,12 @@ describe('OCSP signer CRUD', () => {
     client.post.mockResolvedValue({ name: 'S' });
     await invoke('create_ocsp_signer', {
       name: 'S',
+      dn: 'CN=S',
       private_key: { keystore: 'KS', name: 'K' },
     });
     expect(client.post).toHaveBeenCalledWith('/api/v1/ocsp/signers', {
       name: 'S',
+      dn: 'CN=S',
       privateKey: { keystore: 'KS', name: 'K' },
     });
   });

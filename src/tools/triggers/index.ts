@@ -137,12 +137,20 @@ function registerCreateTrigger(server: McpServer, client: StreamClient): void {
     'create_trigger',
     {
       description:
-        'Create an EMAIL or REST notification trigger. name is an immutable ' +
-        'primary key — ask the user for it; never invent it. type, name, event ' +
-        'are mandatory (plus per-type fields). run_period is required for ' +
-        'expiration events and forbidden otherwise. For REST, noauth forbids ' +
-        'credentials while other auth types require them, and expected_http_codes ' +
-        'must be non-empty.\nSafety tier: mutating-safe\n\nRef: ' +
+        'Create an EMAIL or REST notification trigger.\n' +
+        'MANDATORY (always): type, name, event. Ask the user for these; do not ' +
+        'infer or invent them — especially name, which is the immutable primary ' +
+        'key (no spaces; cannot be changed after creation).\n' +
+        'MANDATORY for type=email: template.from, template.title, ' +
+        'template.is_html. Ask the user; do not infer.\n' +
+        'MANDATORY for type=rest: authentication_type, method, url, ' +
+        'expected_http_codes (non-empty). Ask the user; do not infer.\n' +
+        'CONDITIONAL: run_period is REQUIRED for expiration events ' +
+        '(on_*_expiration) and FORBIDDEN otherwise; ask the user for the period. ' +
+        'For REST, noauth FORBIDS credentials while basic/bearer/custom/x509 ' +
+        'REQUIRE matching credentials (basic->Password, bearer->Raw, ' +
+        'custom->Password|Raw, x509->X509).\n' +
+        'All other fields are optional.\nSafety tier: mutating-safe\n\nRef: ' +
         `${KNOWLEDGE_REF}.`,
       inputSchema: triggerInputSchema,
     },
@@ -172,12 +180,20 @@ function registerUpdateTrigger(server: McpServer, client: StreamClient): void {
     'update_trigger',
     {
       description:
-        'Full-replace update of an EMAIL or REST trigger. The body name is the ' +
-        'lookup key (PUT on the collection root). FULL-REPLACE: any optional ' +
-        'field you omit is CLEARED — supply the complete desired object. type is ' +
-        'IMMUTABLE (cannot change email<->rest for the same name; server returns ' +
-        '500 TRIGGER-001). Same run_period / credentials / expected_http_codes ' +
-        'rules as create.\nSafety tier: mutating-safe\n\nRef: ' +
+        'Full-replace update of an EMAIL or REST trigger.\n' +
+        'MANDATORY lookup key: name (the body name identifies which existing ' +
+        'trigger to replace; PUT on the collection root, no path id). Ask the ' +
+        'user for the exact name; do not infer or invent it — name is immutable ' +
+        'and cannot be changed by this call.\n' +
+        'FULL-REPLACE: this REPLACES the stored trigger entirely. Any optional ' +
+        'field you OMIT is CLEARED/reset (there is no partial-merge / PATCH and ' +
+        'no clear_fields mechanism) — supply the COMPLETE desired object, ' +
+        'including all per-type mandatory fields (email: template.from/title/' +
+        'is_html; rest: authentication_type, method, url, expected_http_codes).\n' +
+        'type is IMMUTABLE (cannot change email<->rest for the same name; server ' +
+        'returns 500 TRIGGER-001). Same run_period / credentials / ' +
+        'expected_http_codes rules as create. Ask the user for any value you do ' +
+        'not have; do not infer.\nSafety tier: mutating-safe\n\nRef: ' +
         `${KNOWLEDGE_REF}.`,
       inputSchema: triggerInputSchema,
     },

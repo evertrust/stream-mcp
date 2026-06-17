@@ -72,7 +72,9 @@ export function registerPrincipalInfoTools(
       description:
         'Create a principal info: direct permissions + role assignments for an ' +
         'identity. Cannot create your OWN principal info (403). roles[] must ' +
-        'reference existing role names.\nSafety tier: mutating-safe\n' +
+        'reference existing role names.\n' +
+        'MANDATORY: identifier. Ask the user; do not infer or invent it. ' +
+        '(permissions and roles are optional.)\nSafety tier: mutating-safe\n' +
         'IMPORTANT: identifier is an immutable key - ask the user; never invent it.\n' +
         PERMISSION_GRAMMAR,
       inputSchema: z.object({
@@ -111,9 +113,14 @@ export function registerPrincipalInfoTools(
     'update_principal_info',
     {
       description:
-        'Update a principal info (full-replace via PUT, lookup by identifier; ' +
-        'omitted optional fields are reset). Cannot edit your OWN principal ' +
-        'info (403).\nSafety tier: mutating-safe\nIMPORTANT: identifier is immutable.\n' +
+        'Update a principal info (full-replace done as GET -> merge your changes ' +
+        '-> PUT, lookup by identifier; any optional field you OMIT keeps its ' +
+        'current value, re-sent from the existing record). Cannot edit your OWN ' +
+        'principal info (403).\n' +
+        'MANDATORY: identifier (the lookup key). Ask the user; do not infer it. ' +
+        'Omitted permissions/roles are PRESERVED (kept at their current value); ' +
+        'use clear_fields to explicitly null them.\nSafety tier: mutating-safe\n' +
+        'IMPORTANT: identifier is immutable.\n' +
         PERMISSION_GRAMMAR,
       inputSchema: z.object({
         identifier: z

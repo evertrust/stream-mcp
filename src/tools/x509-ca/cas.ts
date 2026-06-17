@@ -112,8 +112,17 @@ export function registerCaCrudTools(
         'PEM mandatory, crlUrls must be http://); (c) managed import (certificate PEM ' +
         '+ matching privateKey, no dn). Call describe_ca_schema first.\n' +
         'Safety tier: mutating-safe\n' +
-        'IMPORTANT: name is an immutable primary key — ask the user for it; never ' +
-        'invent it. Never author revoked/revocationDate/revocationReason/id.\n' +
+        'MANDATORY (both types): type, name, trustedForClientAuthentication, ' +
+        'trustedForServerAuthentication.\n' +
+        'MANDATORY (type=managed): enroll, enforceKeyUnicity, privateKey ' +
+        '(keystore + name), and dn when no certificate is supplied (dn must be ' +
+        'OMITTED when a certificate is supplied).\n' +
+        'MANDATORY (type=external): certificate (PEM), ' +
+        'outdatedRevocationStatusPolicy (revoked | unknown | lastavailablestatus).\n' +
+        'Ask the user for every mandatory value; do NOT infer, default, or invent ' +
+        'any of them — especially name (an immutable primary key) and the ' +
+        'trustedFor* booleans (no server default).\n' +
+        'Never author revoked/revocationDate/revocationReason/id (server-managed).\n' +
         `Ref: ${KNOWLEDGE_REF}.`,
       inputSchema: z.object({ config: caConfigSchema }),
     },
@@ -146,7 +155,16 @@ export function registerCaCrudTools(
         'and resets revoked* — to change cert/key use issue_ca / enhance_ca / ' +
         'migrate_ca, NOT update_ca. Call describe_ca_schema first.\n' +
         'Safety tier: mutating-safe\n' +
-        `name and type are immutable. Ref: ${KNOWLEDGE_REF}.`,
+        'MANDATORY: name (the immutable lookup key) and type. Ask the user for the ' +
+        'name; never invent it — a wrong name is a different CA (404 CA-003). ' +
+        'name and type are immutable and cannot be changed.\n' +
+        'This is a full-replace done as GET -> merge your config -> PUT: any ' +
+        'field you OMIT keeps its current value (the tool re-sends it from the ' +
+        'existing record). ' +
+        'certificate/privateKey/altPrivateKey/dn and revoked* are carried over / ' +
+        'reset from the previous record automatically. Never author ' +
+        'revoked/revocationDate/revocationReason/id (server-managed).\n' +
+        `Ref: ${KNOWLEDGE_REF}.`,
       inputSchema: z.object({ config: caConfigSchema }),
     },
     async ({ config }) => {

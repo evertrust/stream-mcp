@@ -53,83 +53,111 @@ const commonFields = {
     .describe(
       'Keystore name (immutable primary key; regex [0-9a-zA-Z-_.]+). Ask the user — never invent it.',
     ),
-  description: z.string().optional().describe('Free-text description.'),
+  description: z
+    .string()
+    .optional()
+    .describe('Optional. Free-text description.'),
 } as const;
 
 // PKCS#11
 const pkcs11Fields = {
-  library: z.string().describe('Path to the PKCS#11 .so library.'),
-  slot: z.number().int().describe('PKCS#11 slot ID.'),
+  library: z
+    .string()
+    .describe('pkcs11 — MANDATORY. Path to the PKCS#11 .so library.'),
+  slot: z.number().int().describe('pkcs11 — MANDATORY. PKCS#11 slot ID.'),
   pin: z
     .string()
     .optional()
     .describe(
-      'PKCS#11 PIN (write-only secret). On update omit to retain the existing PIN.',
+      'pkcs11 — optional. PKCS#11 PIN (write-only secret; ask the user). On update omit to retain the existing PIN.',
     ),
-  rsa_x931_mode: z.boolean().describe('Enable RSA X9.31 signing mode.'),
+  rsa_x931_mode: z
+    .boolean()
+    .describe(
+      'pkcs11 — MANDATORY. Enable RSA X9.31 signing mode (true/false).',
+    ),
   pool_size: z
     .number()
     .int()
     .positive()
     .optional()
-    .describe('Session pool size (must be > 0).'),
+    .describe('pkcs11 — optional. Session pool size (must be > 0).'),
   user_type: z
     .number()
     .int()
     .positive()
     .optional()
-    .describe('PKCS#11 user type (default 1; must be > 0).'),
+    .describe('pkcs11 — optional. PKCS#11 user type (default 1; must be > 0).'),
 } as const;
 
 // AWS KMS
 const awsFields = {
-  region: z.string().optional().describe('AWS region, e.g. us-east-1.'),
+  region: z
+    .string()
+    .optional()
+    .describe('aws — optional. AWS region, e.g. us-east-1.'),
   credentials: z
     .string()
     .optional()
     .describe(
-      'Name of existing `password` credentials (login=access key, password=secret key).',
+      'aws/akv/gcp — optional. Name of an existing credentials object (secret reference). ' +
+        'aws: `password` creds (login=access key, password=secret key); ' +
+        'akv: `password` creds (login=clientId, password=clientSecret); ' +
+        'gcp: `raw` creds holding the GCP service-account JSON.',
     ),
-  role_arn: z.string().optional().describe('IAM role ARN to assume.'),
-  endpoint: z.string().optional().describe('KMS endpoint override (URI).'),
-  proxy: z.string().optional().describe('Existing HTTP proxy reference.'),
+  role_arn: z
+    .string()
+    .optional()
+    .describe('aws — optional. IAM role ARN to assume.'),
+  endpoint: z
+    .string()
+    .optional()
+    .describe('aws — optional. KMS endpoint override (URI).'),
+  proxy: z
+    .string()
+    .optional()
+    .describe('aws/akv/gcp — optional. Existing HTTP proxy reference.'),
   timeout: z
     .string()
     .optional()
-    .describe('Request timeout, e.g. "5 seconds" (default).'),
+    .describe(
+      'aws/akv/gcp — optional. Request timeout, e.g. "5 seconds" (default).',
+    ),
 } as const;
 
 // Azure Key Vault
 const akvFields = {
-  vault_url: z.string().describe('Key Vault URL (required).'),
-  tenant: z.string().optional().describe('Azure tenant ID.'),
+  vault_url: z
+    .string()
+    .describe('akv — MANDATORY (required when type=akv). Key Vault URL.'),
+  tenant: z.string().optional().describe('akv — optional. Azure tenant ID.'),
   credentials: z
     .string()
     .optional()
     .describe(
-      'Name of existing `password` credentials (login=clientId, password=clientSecret).',
+      'akv — optional. Name of existing `password` credentials (login=clientId, password=clientSecret).',
     ),
-  proxy: z.string().optional().describe('Existing HTTP proxy reference.'),
-  timeout: z
-    .string()
-    .optional()
-    .describe('Request timeout, e.g. "5 seconds" (default).'),
 } as const;
 
 // Google Cloud KMS
 const gcpFields = {
-  project: z.string().describe('GCP project ID (required).'),
-  location: z.string().describe('KMS location, e.g. global (required).'),
-  key_ring: z.string().describe('KMS key ring name (required).'),
+  project: z
+    .string()
+    .describe('gcp — MANDATORY (required when type=gcp). GCP project ID.'),
+  location: z
+    .string()
+    .describe(
+      'gcp — MANDATORY (required when type=gcp). KMS location, e.g. global.',
+    ),
+  key_ring: z
+    .string()
+    .describe('gcp — MANDATORY (required when type=gcp). KMS key ring name.'),
   credentials: z
     .string()
     .optional()
-    .describe('Name of existing `raw` credentials holding the GCP SA JSON.'),
-  proxy: z.string().optional().describe('Existing HTTP proxy reference.'),
-  timeout: z
-    .string()
-    .optional()
-    .describe('Request timeout, e.g. "5 seconds" (default).'),
+    .describe(
+      'gcp — optional. Name of existing `raw` credentials holding the GCP SA JSON.',
+    ),
 } as const;
 
 const keystoreInputSchema = z.object({
@@ -274,15 +302,17 @@ export function registerKeystoreTools(
     'create_keystore',
     {
       description:
-        'Create a crypto keystore. The body is polymorphic by `type`:\n' +
-        '- software: name only.\n' +
-        '- pkcs11: library, slot, rsa_x931_mode (required); pin, pool_size, user_type (optional).\n' +
-        '- aws: region, credentials, role_arn, endpoint, proxy, timeout (all optional).\n' +
-        '- akv: vault_url (required); tenant, credentials, proxy, timeout (optional).\n' +
-        '- gcp: project, location, key_ring (required); credentials, proxy, timeout (optional).\n' +
+        'Create a crypto keystore. The body is polymorphic by `type`; mandatory fields depend on `type`:\n' +
+        '- software: type, name only.\n' +
+        '- pkcs11: type, name, library, slot, rsa_x931_mode (mandatory); pin, pool_size, user_type (optional).\n' +
+        '- aws: type, name (mandatory); region, credentials, role_arn, endpoint, proxy, timeout (all optional).\n' +
+        '- akv: type, name, vault_url (mandatory); tenant, credentials, proxy, timeout (optional).\n' +
+        '- gcp: type, name, project, location, key_ring (mandatory); credentials, proxy, timeout (optional).\n' +
         'Safety tier: mutating-safe\n' +
-        'IMPORTANT: name is an immutable primary key — ask the user, never invent it. ' +
-        'pin/credentials are secrets/secret references.',
+        'MANDATORY: always type and name, plus the per-type mandatory fields listed above. ' +
+        'Ask the user for every mandatory value; do NOT infer, default, or invent them. ' +
+        'name is an immutable primary key — never invent it. ' +
+        'pin/credentials are secrets/secret references (also ask the user).',
       inputSchema: keystoreInputSchema,
     },
     async (args: KeystoreInput) => {
@@ -313,8 +343,12 @@ export function registerKeystoreTools(
     'update_keystore',
     {
       description:
-        'Update a crypto keystore (full-replace PUT on the collection root; name selects the record). ' +
+        'Update a crypto keystore (full-replace PUT on the collection root). ' +
+        'MANDATORY: name (the immutable lookup key that selects the existing record) and type. ' +
+        'Ask the user for name; do not infer it. ' +
         'GET -> strip server fields (id, status, pin) -> merge -> PUT. ' +
+        'This is a full replace: the current record is fetched and merged, so optional fields ' +
+        'you OMIT keep their current value, but any optional field you set to a new value overwrites it. ' +
         'Provide the SAME type as the existing record (type is immutable). ' +
         'For pkcs11, omit pin to retain the existing PIN; supply pin to rotate it.\n' +
         'Safety tier: mutating-safe',
