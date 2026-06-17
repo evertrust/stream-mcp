@@ -21,6 +21,8 @@ Node.js ≥ 24.10 (or Bun 1.x+). TypeScript, ESM.
 | `npm run format` / `npm run format:check` | Prettier |
 | `npm run test` | Unit tests (vitest) |
 | `npm run test:e2e` | Live e2e tests against a real instance |
+| `npm run test:scenarios` (`test:llm`) | Free, deterministic LLM-evaluation tier: in-process tool/resource metadata, a keyword tool-ranker, and (when `STREAM_E2E_*` is set) grounded checks that the tools return usable output — no model called |
+| `npm run test:llm:live` | **Paid, opt-in** model-driven smoke: a small Claude model (default Sonnet) drives the MCP and must select the right tool **and** surface usable output |
 
 ## Project layout
 
@@ -100,6 +102,33 @@ npm run test:e2e
 ```
 
 E2e tests skip automatically when the `STREAM_E2E_*` variables are absent.
+
+### LLM smoke tests
+
+Two extra tiers verify the MCP is usable by an LLM (mirroring how the tools are
+actually consumed):
+
+- **Free / deterministic** (`npm run test:scenarios`, dir `tests/llm-evaluation/`):
+  boots the MCP in-process and checks the tool/resource surface, a keyword
+  tool-ranker (a $0 proxy for a small model's tool choice), and — when
+  `STREAM_E2E_*` is set — **grounded** checks that calling the tools returns
+  usable output (e.g. `whoami` resolves a principal, `list_cas` returns a list
+  envelope, `search_certificates` returns a paginated envelope). No model is
+  called, so this runs anywhere.
+- **Paid / model-driven** (`npm run test:llm:live`, dir `tests/llm-live/`):
+  drives a small Claude model (default **Sonnet**, override with
+  `STREAM_LLM_LIVE_MODEL`) via the Claude Agent SDK against the spawned MCP, and
+  asserts the model both **selects the right tool** and **surfaces usable output**
+  in its answer. This **costs money** and is **opt-in** — it only runs when
+  explicitly enabled:
+
+  ```bash
+  source .env.local && STREAM_LLM_LIVE=1 bun run test:llm:live
+  ```
+
+  It skips (no model call, no billing) unless `STREAM_LLM_LIVE=1`, a `claude`
+  binary is on PATH, `ANTHROPIC_API_KEY` is unset, and `STREAM_E2E_*` are present.
+  The config deliberately does not auto-load `.env.local`.
 
 ## CI
 
