@@ -28,6 +28,7 @@ function setup() {
     delete: vi.fn(),
     getText: vi.fn(),
     postMultipart: vi.fn(),
+    exportTimeout: 120000,
   } as any;
   registerSystemTools(server, client);
   return { tools, client };
@@ -402,7 +403,12 @@ describe('license, dictionaries, export', () => {
     const { tools, client } = setup();
     client.getText.mockResolvedValue('= Stream Configuration Cookbook');
     const res = await tool(tools, 'export_configuration').handler({});
-    expect(client.getText).toHaveBeenCalledWith('/api/v1/adoc', 'text/plain');
+    // Exports use the longer exportTimeout, not the default request timeout.
+    expect(client.getText).toHaveBeenCalledWith(
+      '/api/v1/adoc',
+      'text/plain',
+      120000,
+    );
     expect(payload(res)).toContain('Cookbook');
   });
 
@@ -415,6 +421,7 @@ describe('license, dictionaries, export', () => {
     expect(client.getText).toHaveBeenCalledWith(
       '/api/v1/adoc?withTrustChains=true',
       'text/plain',
+      120000,
     );
   });
 });

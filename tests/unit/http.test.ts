@@ -111,4 +111,35 @@ describe('StreamClient', () => {
       StreamError,
     );
   });
+
+  it('getText rejects an oversized Content-Length before reading the body', async () => {
+    const huge = String(11 * 1024 * 1024);
+    route(
+      () =>
+        ({
+          status: 200,
+          headers: {
+            get: (k: string) => (k === 'content-length' ? huge : null),
+          },
+          text: async () => 'should-not-be-read',
+        }) as any,
+    );
+    await expect(makeClient().getText('/api/v1/adoc')).rejects.toMatchObject({
+      name: 'StreamError',
+    });
+  });
+
+  it('getBytes rejects an oversized actual body even without Content-Length', async () => {
+    route(
+      () =>
+        ({
+          status: 200,
+          headers: { get: () => null },
+          arrayBuffer: async () => new ArrayBuffer(11 * 1024 * 1024),
+        }) as any,
+    );
+    await expect(makeClient().getBytes('/api/v1/x')).rejects.toMatchObject({
+      name: 'StreamError',
+    });
+  });
 });

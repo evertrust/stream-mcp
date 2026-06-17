@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { StreamClient } from '../../src/client/http.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -435,5 +435,30 @@ describe('hsm', () => {
     expect(client.getList).toHaveBeenCalledWith(
       '/api/v1/crypto/hsms/%2Flib.so/slots',
     );
+  });
+
+  describe('STREAM_HSM_LIBRARY_ALLOWLIST', () => {
+    afterEach(() => {
+      delete process.env.STREAM_HSM_LIBRARY_ALLOWLIST;
+    });
+
+    it('rejects a non-allowlisted library before calling the client', async () => {
+      process.env.STREAM_HSM_LIBRARY_ALLOWLIST =
+        '/usr/lib/softhsm/libsofthsm2.so';
+      const { client, invoke } = setup();
+      const res = await invoke('get_hsm_info', { library: '/evil/lib.so' });
+      expect(res.isError).toBe(true);
+      expect(client.get).not.toHaveBeenCalled();
+    });
+
+    it('allows an allowlisted library', async () => {
+      process.env.STREAM_HSM_LIBRARY_ALLOWLIST = '/lib.so,/other.so';
+      const { client, invoke } = setup();
+      (client.getList as any).mockResolvedValue([{ id: 1 }]);
+      await invoke('get_hsm_slots', { library: '/lib.so' });
+      expect(client.getList).toHaveBeenCalledWith(
+        '/api/v1/crypto/hsms/%2Flib.so/slots',
+      );
+    });
   });
 });

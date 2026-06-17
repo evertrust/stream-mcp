@@ -522,4 +522,35 @@ describe('upload_crl', () => {
     }
     expect(client.postMultipart).not.toHaveBeenCalled();
   });
+
+  it('auto-detects base64 DER when no PEM header and no flag', async () => {
+    const { client, byName } = setup();
+    client.postMultipart.mockResolvedValue(null);
+    const b64 = Buffer.from('der-bytes').toString('base64');
+    await byName('upload_crl').h({ name: 'Ext', crl: b64 });
+    const parts = client.postMultipart.mock.calls[0]![1] as any[];
+    expect(Buffer.isBuffer(parts[0].data)).toBe(true);
+    expect((parts[0].data as Buffer).toString()).toBe('der-bytes');
+    expect(parts[0].mimeType).toBe('application/pkix-crl');
+  });
+
+  it('auto-detects PEM (sent verbatim) when the -----BEGIN header is present', async () => {
+    const { client, byName } = setup();
+    client.postMultipart.mockResolvedValue(null);
+    const pem = '-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----';
+    await byName('upload_crl').h({ name: 'Ext', crl: pem });
+    const parts = client.postMultipart.mock.calls[0]![1] as any[];
+    expect(parts[0].data).toBe(pem);
+    expect(parts[0].mimeType).toBe('application/x-pem-file');
+  });
+
+  it('rejects malformed base64 with NO flag (auto-detected as DER)', async () => {
+    const { client, byName } = setup();
+    const res = await byName('upload_crl').h({
+      name: 'Ext',
+      crl: '!!!!not-base64!!!!',
+    });
+    expect(res.isError).toBe(true);
+    expect(client.postMultipart).not.toHaveBeenCalled();
+  });
 });

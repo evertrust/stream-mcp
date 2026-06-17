@@ -122,7 +122,12 @@ export function registerSystemInfoTools(
       const path = with_trust_chains
         ? '/api/v1/adoc?withTrustChains=true'
         : '/api/v1/adoc';
-      const adoc = await client.getText(path, 'text/plain');
+      // Full-config export can be large/slow — use the longer export timeout.
+      const adoc = await client.getText(
+        path,
+        'text/plain',
+        client.exportTimeout,
+      );
       return text(adoc);
     },
   );
