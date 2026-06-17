@@ -1,140 +1,105 @@
 # Stream MCP Server
 
-`@evertrust/stream-mcp` — a [Model Context Protocol](https://modelcontextprotocol.io)
-server that exposes the **Evertrust Stream 2.1** PKI platform (certification
-authorities, certificates, revocation, timestamping, SSH, and the supporting
-configuration) to AI agents.
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/evertrust/stream-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/evertrust/stream-mcp/actions/workflows/ci.yml)
 
-It mirrors the architecture of a proven layered MCP architecture: TypeScript over stdio,
-`@modelcontextprotocol/sdk`, `undici`, and `zod`. Every tool's request/response
-contract is traced to the Stream Scala source and verified live against a running
-instance.
+An [MCP](https://modelcontextprotocol.io/) server for **Evertrust Stream** — a
+PKI platform providing certification authorities, certificate issuance and
+revocation, a validation authority (OCSP), timestamping (TSA), and an OpenSSH
+certificate authority. It lets MCP-compatible LLM clients (Claude Desktop, Claude
+Code, Cursor, Codex, OpenCode) stand up and operate CAs, issue/revoke X.509 and
+SSH certificates, run SCQL/SEQL searches, manage keystores, OCSP/TSA signers,
+notification triggers, RBAC and system configuration, and decode
+X.509/CSR/CRL/PKCS#12/OpenSSH payloads — all through natural language. It targets
+PKI engineers, platform teams, and security operators who want to drive Stream
+without leaving their IDE or chat client.
 
-## Features
+## Tools
 
-- **151 tools** across all four Stream modules plus supporting config.
-- **Embedded knowledge** resources (`stream://knowledge/*`) and a `search_docs`
-  tool so the agent can look up Stream concepts and query syntax.
-- **Two auth modes**: local account (API headers) and X.509 / mTLS. No OIDC.
-- Safe by construction: immutable-name guards, full-replace update cycle,
-  secret redaction, destructive-action echo confirmation, structured errors.
+**153 tools across 13 domains**, each annotated with a safety tier (read-only /
+idempotent / additive / destructive) and "ask before you invent a name" guidance
+for smaller models.
 
-### Tool domains
+| Domain | Tools | Highlights |
+|--------|------:|------------|
+| X509 Certificate Authorities | 12 | create-from-scratch, import, CSR → issue, enhance, migrate, CRL |
+| X509 Certificates & Lifecycle | 6 | SCQL search/aggregate, enroll, revoke |
+| X509 Certificate Templates | 5 | issuance profiles |
+| Revocation (CRL & OCSP) | 10 | CRL info, OCSP signers, assign-to-CA |
+| Cryptographic Storage | 12 | keystores (software/PKCS#11/AWS/Azure/GCP), keys, HSM |
+| Triggers & Notifications | 6 | email/REST, expiration, external RL storage |
+| System Management | 19 | config, proxies, queues, license, dictionaries, export |
+| Access Control & Identity | 27 | roles, local identities, providers, credentials, whoami |
+| Audit Events | 5 | SEQL search, dictionary, integrity checks |
+| Utilities & Decoders | 14 | RFC5280/OpenSSH decoders, trust chains, EKUs |
+| Timestamping (TSA) | 16 | authorities, signers, NTP clients |
+| OpenSSH (SSH module) | 19 | CAs, templates, certificates, enroll/revoke, KRLs |
+| Knowledge Base | 2 | search_docs, get_doc |
 
-| Domain | Tools | Examples |
-|--------|-------|----------|
-| X509 CA management | 12 | `list_cas`, `create_ca`, `generate_ca_csr`, `issue_ca`, `enhance_ca`, `migrate_ca`, `generate_crl`, `upload_crl` |
-| X509 certificates + lifecycle | 6 | `search_certificates`, `aggregate_certificates`, `get_certificate`, `enroll_certificate`, `revoke_certificate` |
-| X509 templates | 5 | `list_templates`, `create_template`, `update_template`, `delete_template` |
-| Revocation (CRL + OCSP) | 10 | `list_crls`, `update_crl_next_refresh`, `create_ocsp_signer`, `generate_ocsp_signer_csr`, `assign_ocsp_signer_to_ca` |
-| Crypto (keystores/keys/HSM) | 12 | `create_keystore`, `create_key`, `find_ca_keys`, `get_hsm_info`, `get_hsm_slots` |
-| Triggers / notifications | 6 | `list_triggers`, `create_trigger`, `update_trigger`, `test_trigger` |
-| System management | 19 | `upsert_system_configuration`, `create_proxy`, `create_queue`, `get_license_info`, `get_key_types`, `export_configuration` |
-| RBAC / security | 27 | `whoami`, `create_role`, `create_local_identity`, `reset_local_identity_password`, `create_credential`, `create_identity_provider` |
-| Audit events | 5 | `search_events`, `get_event`, `get_event_dictionary`, `run_event_integrity_check` |
-| Utilities / decoders | 14 | `detect_file`, `decode_x509`, `decode_csr`, `decode_crl`, `extract_pkcs12`, `get_trust_chain`, `list_ekus` |
-| TSA (timestamping) | 16 | `create_tsa_authority`, `create_tsa_signer`, `generate_tsa_signer_csr`, `create_ntp_client` |
-| SSH (OpenSSH) | 19 | `create_ssh_ca`, `generate_krl`, `create_ssh_template`, `enroll_ssh_certificate`, `revoke_ssh_certificate` |
+Full per-tool table with safety tiers in [docs/tools-reference.md](docs/tools-reference.md).
 
-### Knowledge resources
-
-Served as `stream://knowledge/*` (and consult via the `search_docs` tool):
-`architecture`, `authentication`, `query-languages`, `ca-management`,
-`lifecycle`, `templates`, `revocation`, `keystores`, `triggers`, `rbac`, `tsa`,
-`ssh`, `system-admin`, `tool-selection`, `server-rules`.
-
-> Stream has exactly two query languages: **SEQL** (Stream Events Query Language,
-> for `search_events`) and **SCQL** (Stream Certificates Query Language, for
-> `search_certificates` / `search_ssh_certificates`).
-
-## Installation
+## Quickstart
 
 ```bash
-npm install      # install dependencies
-npm run build    # bundle to dist/index.js
+git clone https://github.com/evertrust/stream-mcp.git
+cd stream-mcp
+npm install
+npm run build
 ```
 
-Requires Node.js ≥ 24.10 (or Bun).
+Run it (normally launched by an MCP client over stdio):
+
+```bash
+STREAM_URL=https://stream.example.com \
+STREAM_API_ID=my-account \
+STREAM_API_KEY='********' \
+node dist/index.js
+```
+
+See [docs/installation.md](docs/installation.md) for prerequisites and the
+`npx`/`bunx` launch form, and [docs/client-setup.md](docs/client-setup.md) for
+Claude Desktop / Claude Code / Cursor / Codex / MCP Inspector configurations.
 
 ## Configuration
 
-All configuration is via `STREAM_*` environment variables (see `.env.example`).
+The server is configured entirely through `STREAM_*` environment variables. A
+starter template lives in [.env.example](.env.example); copy it to `.env.local`
+and adjust. At minimum set `STREAM_URL` and one credential set.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `STREAM_URL` | yes | `https://localhost` | Base URL of the Stream instance |
-| `STREAM_API_ID` | local auth | — | Local account identifier (username) |
-| `STREAM_API_KEY` | local auth | — | Local account password |
-| `STREAM_API_IDPROV` | no | `local` | Identity-provider name |
-| `STREAM_CLIENT_CERT` / `STREAM_CLIENT_KEY` | mTLS | — | Client cert + key (PEM) |
-| `STREAM_CLIENT_KEY_PASSWORD` | no | — | Key passphrase |
-| `STREAM_CLIENT_PFX` / `STREAM_CLIENT_PFX_PASSWORD` | mTLS | — | PKCS#12 bundle + password |
-| `STREAM_VERIFY_SSL` | no | `true` | Verify the server TLS certificate |
-| `STREAM_TIMEOUT` | no | `30` | Request timeout (seconds) |
-| `STREAM_LOG_LEVEL` | no | `INFO` | `DEBUG`/`INFO`/`WARNING`/`ERROR` |
+Authentication is **auto-detected**: a client certificate selects **X.509/mTLS**,
+otherwise `STREAM_API_ID`/`STREAM_API_KEY` select **local-account** auth. OIDC is
+not supported by the server. The binary name shipped by this package is
+**`stream-mcp`** (declared in `package.json` `bin`). See
+[docs/authentication.md](docs/authentication.md) for the full guide.
 
-**Authentication** is auto-detected: a client cert/PFX selects mTLS; otherwise
-`STREAM_API_ID`/`STREAM_API_KEY` select local-account auth. OIDC is not supported.
+## Knowledge resources
 
-### MCP client configuration
+The server embeds a knowledge base exposed at `stream://knowledge/*` URIs and via
+the `search_docs` / `get_doc` tools, covering architecture, authentication, the
+SCQL/SEQL query languages, CA management, lifecycle, templates, revocation,
+keystores, triggers, RBAC, TSA, SSH, system admin, tool selection, and server
+rules. See [docs/knowledge-resources.md](docs/knowledge-resources.md).
 
-```jsonc
-{
-  "mcpServers": {
-    "stream": {
-      "command": "node",
-      "args": ["/path/to/stream-mcp/dist/index.js"],
-      "env": {
-        "STREAM_URL": "https://stream.example.com",
-        "STREAM_API_ID": "my-account",
-        "STREAM_API_KEY": "••••••••",
-        "STREAM_API_IDPROV": "local"
-      }
-    }
-  }
-}
-```
+## Documentation
+
+| Guide | Contents |
+|-------|----------|
+| [Installation](docs/installation.md) | Install methods, configuration, troubleshooting |
+| [Authentication](docs/authentication.md) | Local-account and X.509/mTLS modes with env reference |
+| [Client setup](docs/client-setup.md) | Claude Desktop, Claude Code, Cursor, Codex, MCP Inspector |
+| [Tool reference](docs/tools-reference.md) | All 153 tools by domain with safety tiers |
+| [Knowledge resources](docs/knowledge-resources.md) | `stream://knowledge/*` catalog + search tools |
+| [Development](docs/development.md) | Dev setup, architecture, tests, contributing |
 
 ## Development
 
 ```bash
-npm run dev          # run from source (tsx)
-npm run typecheck    # tsc --noEmit
-npm run test         # unit tests (vitest)
-npm run lint         # eslint
-npm run build        # tsup bundle
+npm run typecheck && npm run lint && npm run test && npm run build
 ```
 
-### Live (e2e) tests
-
-E2E tests run against a real Stream instance and are gated on `STREAM_E2E_*`
-variables (place them in `.env.local`, which is git-ignored):
-
-```bash
-STREAM_E2E_URL=https://stream.qa.example.com
-STREAM_E2E_API_ID=...
-STREAM_E2E_API_KEY=...
-```
-
-```bash
-npm run test:e2e
-```
-
-## Project layout
-
-```
-src/
-  index.ts            # server entry (stdio)
-  settings.ts         # STREAM_* env -> validated config
-  auth/               # local-account + mTLS providers
-  client/             # StreamClient (undici), errors, retry
-  tools/              # one folder per domain + registry + scaffold/helpers
-  resources/          # stream://knowledge/* catalog + markdown
-docs/
-  audit/              # per-domain REST API contracts (ground truth)
-  superpowers/        # design spec + implementation plan
-```
+See [docs/development.md](docs/development.md) for the full guide.
 
 ## License
 
-See [LICENSE](./LICENSE).
+Copyright 2026 [Evertrust](https://www.evertrust.fr/). Licensed under the
+[Apache License 2.0](LICENSE).

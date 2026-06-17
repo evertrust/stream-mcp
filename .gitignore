@@ -8,6 +8,11 @@ node_modules/
 bun.lock
 .npmrc
 
+# Internal/build-time docs (never committed; not used by the server)
+docs/superpowers
+docs/CODEMAPS
+docs/audit
+
 # Build output
 dist/
 *.tsbuildinfo
