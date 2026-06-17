@@ -130,6 +130,14 @@ actually consumed):
   binary is on PATH, `ANTHROPIC_API_KEY` is unset, and `STREAM_E2E_*` are present.
   The config deliberately does not auto-load `.env.local`.
 
+When to run the paid tier: before merging changes that alter tool names,
+descriptions, or input schemas. The deterministic ranker in `test:scenarios` is a
+fast proxy, but only a real model exposes whether your wording works for an actual
+user. A per-scenario `maxBudgetUsd` cap and `maxTurns` cap bound any runaway loop,
+and the suite is excluded from CI so PR builds never incur charges. Use a cheaper
+model with `STREAM_LLM_LIVE_MODEL=claude-haiku-4-5` when you just want a quick
+selection check.
+
 ## CI
 
 `.github/workflows/ci.yml` runs format-check, lint, typecheck, build, and unit

@@ -272,47 +272,6 @@ Who am I authenticated as, and what permissions do I have?
 Create a local account for a new operator and return its one-time password.
 ```
 
-## Development
-
-```bash
-bun install
-source .env.local       # QA credentials for E2E and grounded LLM tests
-bun run format:check && bun run lint && bun run typecheck && bun run build && bun run test
-```
-
-More granular scripts:
-
-| Command                  | Purpose                                                                  |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `bun run dev`            | Start the server with `tsx` (no build step).                            |
-| `bun run build`          | Production build via `tsup` (inlines the knowledge `.md`).               |
-| `bun run test`           | Unit tests with Vitest.                                                  |
-| `bun run test:e2e`       | Live e2e tests against a real Stream instance.                          |
-| `bun run test:scenarios` | Free, deterministic LLM-evaluation tier (metadata + ranker + grounded). |
-| `bun run test:llm:live`  | Paid, opt-in model-driven smoke (real Claude in the loop).              |
-| `bun run lint`           | ESLint over `src/` and `tests/`.                                        |
-| `bun run typecheck`      | `tsc --noEmit` only.                                                    |
-| `bun run format`         | Prettier over `src/` and `tests/`.                                      |
-
-### Live LLM evaluation (`test:llm:live`)
-
-`bun run test:llm:live` drives the real Claude Agent SDK against the local Stream MCP server, asking a small model (default **Sonnet**) a curated set of natural-language questions and asserting that it both selects the right MCP tool **and** surfaces usable output. Use it before merging changes that alter tool names, descriptions, or input schemas - the deterministic ranker in `test:scenarios` is a fast proxy, but only a real model exposes whether your wording works for an actual user.
-
-It is paid and **opt-in**. It runs only when all of the following hold, otherwise it skips with no model call and no billing:
-
-- `STREAM_LLM_LIVE=1` is set (the mandatory paid opt-in)
-- the `claude` CLI is on `PATH` with an active subscription session (`claude login`)
-- `ANTHROPIC_API_KEY` is **unset** (the suite refuses to run against explicit API billing)
-- `STREAM_E2E_*` credentials are present
-
-```bash
-source .env.local && STREAM_LLM_LIVE=1 bun run test:llm:live
-```
-
-A per-scenario `maxBudgetUsd` cap and `maxTurns` cap bound any runaway loop, and the suite is intentionally excluded from CI so PR builds never incur charges. Override the model with `STREAM_LLM_LIVE_MODEL=claude-haiku-4-5` for a cheaper run.
-
-See [docs/development.md](docs/development.md) for the full guide.
-
 ## Troubleshooting
 
 - **`No authentication configured`** - set `STREAM_API_ID` + `STREAM_API_KEY` for local-account auth, or `STREAM_CLIENT_CERT` + `STREAM_CLIENT_KEY` (or `STREAM_CLIENT_PFX`) for mTLS.
@@ -341,6 +300,8 @@ See [docs/development.md](docs/development.md) for the full guide.
 ## Contributing
 
 PRs welcome. Before opening a pull request, run `bun run format:check && bun run lint && bun run typecheck && bun run build && bun run test` (source `.env.local` first to additionally exercise the live e2e and grounded LLM tiers). Keep commits to one-line conventional messages (`type: description`).
+
+For local setup, project layout, architecture, how to add a tool, and the full test guide (unit, e2e, and LLM tiers), see [docs/development.md](docs/development.md).
 
 ## Safety and trust caveats
 
