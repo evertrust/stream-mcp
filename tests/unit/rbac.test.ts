@@ -189,14 +189,14 @@ describe('local identities', () => {
     );
   });
 
-  it('reset redacts the returned password', async () => {
+  it('reset returns the one-time password in clear (revealed, not redacted)', async () => {
     const { client, tool } = setup();
     client.get.mockResolvedValue({ identifier: 'aje', password: 'secret' });
     const res = await tool('reset_local_identity_password').h({
       identifier: 'aje',
     });
-    expect(res.content[0].text).not.toContain('secret');
-    expect(res.content[0].text).toContain('<redacted>');
+    const data = JSON.parse(res.content[0].text).data;
+    expect(data.password).toBe('secret'); // the caller must be able to capture it
   });
 });
 

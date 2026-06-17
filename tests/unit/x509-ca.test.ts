@@ -508,4 +508,18 @@ describe('upload_crl', () => {
     expect(parts[1].fieldName).toBe('nextRefresh');
     expect(parts[1].data).toBe('2027-01-01T00:00:00Z');
   });
+
+  it('rejects malformed base64 without calling postMultipart', async () => {
+    const { client, byName } = setup();
+    // Node's lenient decoder would silently accept these; the strict guard must not.
+    for (const bad of ['not valid base64!!', 'abc', '====', 'YQ=Z']) {
+      const res = await byName('upload_crl').h({
+        name: 'Ext',
+        crl: bad,
+        crl_base64: true,
+      });
+      expect(res.isError, bad).toBe(true);
+    }
+    expect(client.postMultipart).not.toHaveBeenCalled();
+  });
 });

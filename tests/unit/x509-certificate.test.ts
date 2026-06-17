@@ -295,12 +295,13 @@ describe('revoke_certificate', () => {
     });
   });
 
-  it('revokes by serial + ca', async () => {
+  it('revokes by serial + ca (with expected_serial confirmation)', async () => {
     const { client, tool } = setup();
     client.post.mockResolvedValue({ dn: 'CN=z', revoked: true });
     await tool('revoke_certificate').h({
       serial: 'deadbeef',
       ca: 'ISSUING_CA',
+      expected_serial: 'deadbeef',
       reason: 'superseded',
     });
     expect(client.post).toHaveBeenCalledWith('/api/v1/lifecycle/revoke', {
@@ -308,6 +309,24 @@ describe('revoke_certificate', () => {
       serial: 'deadbeef',
       ca: 'ISSUING_CA',
     });
+  });
+
+  it('blocks serial+ca revoke when expected_serial is missing or mismatched', async () => {
+    const { client, tool } = setup();
+    const missing = await tool('revoke_certificate').h({
+      serial: 'deadbeef',
+      ca: 'ISSUING_CA',
+      reason: 'superseded',
+    });
+    expect(missing.isError).toBe(true);
+    const mismatch = await tool('revoke_certificate').h({
+      serial: 'deadbeef',
+      ca: 'ISSUING_CA',
+      expected_serial: 'cafe',
+      reason: 'superseded',
+    });
+    expect(mismatch.isError).toBe(true);
+    expect(client.post).not.toHaveBeenCalled();
   });
 
   it('errors when neither certificate nor serial+ca is provided', async () => {

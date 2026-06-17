@@ -108,5 +108,16 @@ describe('server integration', () => {
     expect(byName.get('update_template')?.annotations?.idempotentHint).toBe(
       true,
     );
+    // HSM tools load a native library on the server -> not read-only, open-world.
+    expect(byName.get('get_hsm_info')?.annotations?.readOnlyHint).toBe(false);
+    expect(byName.get('get_hsm_info')?.annotations?.openWorldHint).toBe(true);
+    expect(byName.get('get_hsm_slots')?.annotations?.readOnlyHint).toBe(false);
+    // Integrity check kicks off a background job + persists a report -> not read-only.
+    expect(
+      byName.get('run_event_integrity_check')?.annotations?.readOnlyHint,
+    ).toBe(false);
+    expect(
+      byName.get('run_event_integrity_check')?.annotations?.idempotentHint,
+    ).toBe(false);
   });
 });

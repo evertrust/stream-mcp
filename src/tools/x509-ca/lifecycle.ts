@@ -281,14 +281,26 @@ export function registerCaLifecycleTools(
       let data: Buffer | string;
       let mimeType: string;
       if (crl_base64) {
-        try {
-          data = Buffer.from(crl, 'base64');
-        } catch {
+        // Node's base64 decoder silently ignores invalid characters, so
+        // Buffer.from never throws on garbage. Validate strictly (charset +
+        // padding + length) and verify the decode round-trips before sending.
+        const normalized = crl.replace(/\s+/g, '');
+        const wellFormed =
+          normalized.length > 0 &&
+          normalized.length % 4 === 0 &&
+          /^[A-Za-z0-9+/]+={0,2}$/.test(normalized);
+        const decoded = wellFormed
+          ? Buffer.from(normalized, 'base64')
+          : Buffer.alloc(0);
+        if (!wellFormed || decoded.toString('base64') !== normalized) {
           throw new StreamError(422, {
             errorCode: 'CA-CLIENT-VALIDATION',
-            message: 'crl is not valid base64.',
+            message:
+              'crl is not valid base64. Provide canonical base64-encoded DER ' +
+              '(or pass the PEM directly with crl_base64=false).',
           });
         }
+        data = decoded;
         mimeType = 'application/pkix-crl';
       } else {
         data = crl;
