@@ -247,23 +247,28 @@ export function registerCaLifecycleTools(
     'upload_crl',
     {
       description:
-        'Upload a CRL for an EXTERNAL Certificate Authority (multipart/form-data). The ' +
-        'CRL must verify under the CA cert (CA-010). Optional next_refresh is an ISO-' +
-        '8601 instant that must not be in the past (CA-019). Managed CAs generate CRLs ' +
-        '(generate_crl), they do not upload. Provide the CRL content as text (PEM) or ' +
-        'base64 (DER).\nSafety tier: mutating-safe\nRef: docs/audit/x509-ca.md.',
+        'Upload a CRL for an EXTERNAL Certificate Authority (multipart/form-data). ' +
+        'Accepts BOTH formats: PEM text or base64-encoded DER — the format is ' +
+        'auto-detected (PEM is recognized by its -----BEGIN ... CRL----- header; ' +
+        'anything else is treated as base64 DER). The CRL must verify under the CA ' +
+        'cert (CA-010). Optional next_refresh is an ISO-8601 instant that must not be ' +
+        'in the past (CA-019). Managed CAs generate CRLs (generate_crl), they do not ' +
+        'upload.\nSafety tier: mutating-safe\nRef: docs/audit/x509-ca.md.',
       inputSchema: z.object({
         name: z.string().describe('Name of the external CA.'),
         crl: z
           .string()
           .describe(
-            'CRL contents: PEM text, or base64-encoded DER (set crl_base64=true).',
+            'CRL contents — either PEM text (-----BEGIN X509 CRL-----...) or ' +
+              'base64-encoded DER. Format is auto-detected; no flag needed. (Raw ' +
+              'binary DER must be base64-encoded to pass as a string.)',
           ),
         crl_base64: z
           .boolean()
           .optional()
           .describe(
-            'If true, `crl` is base64-encoded DER and is decoded before upload.',
+            'Optional override of format auto-detection: true forces base64-DER ' +
+              'interpretation, false forces PEM. Omit to auto-detect.',
           ),
         crl_filename: z
           .string()
@@ -278,9 +283,14 @@ export function registerCaLifecycleTools(
       }),
     },
     async ({ name, crl, crl_base64, crl_filename, next_refresh }) => {
+      // Accept PEM or base64-DER. Auto-detect by the PEM header unless the
+      // caller forces an interpretation via crl_base64.
+      const looksPem = crl.includes('-----BEGIN');
+      const asBase64Der = crl_base64 ?? !looksPem;
+
       let data: Buffer | string;
       let mimeType: string;
-      if (crl_base64) {
+      if (asBase64Der) {
         // Node's base64 decoder silently ignores invalid characters, so
         // Buffer.from never throws on garbage. Validate strictly (charset +
         // padding + length) and verify the decode round-trips before sending.
@@ -296,8 +306,8 @@ export function registerCaLifecycleTools(
           throw new StreamError(422, {
             errorCode: 'CA-CLIENT-VALIDATION',
             message:
-              'crl is not valid base64. Provide canonical base64-encoded DER ' +
-              '(or pass the PEM directly with crl_base64=false).',
+              'crl does not look like PEM (no -----BEGIN header) and is not valid ' +
+              'base64-encoded DER. Provide PEM text or canonical base64 DER.',
           });
         }
         data = decoded;

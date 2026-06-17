@@ -239,8 +239,8 @@ export class StreamClient {
     return readJsonBounded<unknown>(resp, path);
   }
 
-  async getBytes(path: string): Promise<ArrayBuffer> {
-    const resp = await this._request('GET', path, {});
+  async getBytes(path: string, timeoutMs?: number): Promise<ArrayBuffer> {
+    const resp = await this._request('GET', path, { timeoutMs });
     assertDeclaredSizeWithinCap(resp, path);
     const buf = await resp.arrayBuffer();
     if (buf.byteLength > MAX_RESPONSE_BYTES) {
@@ -249,22 +249,23 @@ export class StreamClient {
     return buf;
   }
 
-  /** GET returning the raw body text (e.g. CSR PEM, AsciiDoc export). */
-  async getText(path: string, accept = 'application/json'): Promise<string> {
-    const resp = await this._request('GET', path, { accept });
+  /**
+   * GET returning the raw body text (e.g. CSR PEM, AsciiDoc export).
+   * `timeoutMs` overrides the default per-request timeout (use
+   * `client.exportTimeout` for large exports).
+   */
+  async getText(
+    path: string,
+    accept = 'application/json',
+    timeoutMs?: number,
+  ): Promise<string> {
+    const resp = await this._request('GET', path, { accept, timeoutMs });
     assertDeclaredSizeWithinCap(resp, path);
     const txt = await resp.text();
     if (txt.length > MAX_RESPONSE_BYTES) {
       throw oversizedError(path, txt.length);
     }
     return txt;
-  }
-
-  async postText(path: string, body?: unknown): Promise<string> {
-    const resp = await this._request('POST', path, {
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-    return resp.text();
   }
 
   /** POST multipart/form-data (file uploads, RFC5280 decoders). */
@@ -435,7 +436,7 @@ export class StreamClient {
     const fullUrl = `${this._baseUrl}${path}`;
     let resp: Response;
     try {
-      resp = await this._doRequest(method, fullUrl, fetchOpts);
+      resp = await this._doRequest(method, fullUrl, fetchOpts, timeoutMs);
     } catch (err) {
       const causeCode = getCauseCode(err);
       const isConnectionError =
@@ -473,14 +474,17 @@ export class StreamClient {
     method: string,
     url: string,
     fetchOpts: UndiciRequestInit & { dispatcher: Agent },
+    timeoutMs: number,
   ): Promise<Response> {
     const upper = method.toUpperCase();
-    // Safe methods auto-retry on transient failures; mutations do not.
+    // Safe methods auto-retry on transient failures; mutations do not. Each
+    // retry attempt needs a FRESH timeout signal (an aborted one stays aborted),
+    // and it must honor the caller's timeout (e.g. exportTimeout), not the default.
     if (upper === 'GET' || upper === 'HEAD') {
       return withRetry(() =>
         undiciFetch(url, {
           ...fetchOpts,
-          signal: AbortSignal.timeout(this._timeout),
+          signal: AbortSignal.timeout(timeoutMs),
         }),
       );
     }
