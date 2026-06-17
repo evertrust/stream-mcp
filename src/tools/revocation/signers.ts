@@ -104,16 +104,26 @@ const SIGNER_SPEC: ConfigSpec = {
 
 // Shared Zod sub-schemas for the signer's nested objects.
 const privateKeyShape = z.object({
-  keystore: z.string().describe('Name of an existing keystore.'),
-  name: z.string().describe('Private-key alias within the keystore.'),
+  keystore: z
+    .string()
+    .describe('REQUIRED. Name of an existing keystore (must pre-exist).'),
+  name: z
+    .string()
+    .describe(
+      'REQUIRED. Private-key alias within the keystore (must pre-exist).',
+    ),
   hash_algorithm: z
     .enum(HASH_ALGORITHMS)
     .optional()
     .describe(
-      'Signing hash algorithm. Omit for EdDSA curves. The server may normalize ' +
-        'this to match the certificate.',
+      'OPTIONAL. Signing hash algorithm. Allowed: SHA1, SHA224, SHA256, SHA384, ' +
+        'SHA512. Omit for EdDSA curves. The server may normalize this to match ' +
+        'the certificate.',
     ),
-  use_pss: z.boolean().optional().describe('Use RSA-PSS padding.'),
+  use_pss: z
+    .boolean()
+    .optional()
+    .describe('OPTIONAL. Use RSA-PSS padding (RSA keys only).'),
 });
 type PrivateKeyInput = z.infer<typeof privateKeyShape>;
 
@@ -155,36 +165,41 @@ export function registerSignerTools(
   registerCreateTool(server, client, SIGNER_SPEC, {
     description:
       'Create a new OCSP signer. A fresh signer carries NO certificate (the ' +
-      'server forces it to none); you supply a subject `dn` so a CSR can later be ' +
-      'generated (generate_ocsp_signer_csr) and the issued certificate imported. ' +
-      'The privateKey keystore + alias must already exist. Requires the VA module.',
-    mandatoryFields: ['name', 'private_key'],
+      'server forces it to none on create); you MUST supply a subject `dn` so a ' +
+      'CSR can later be generated (generate_ocsp_signer_csr) and the issued ' +
+      'certificate imported - the server rejects a cert-less signer with no dn ' +
+      '(OCSP-SIGNER-002 "dn is mandatory when certificate is not specified"). The ' +
+      'privateKey keystore + key alias must already exist. Requires the VA module.',
+    // dn is mandatory on create: certificate is forced None, and the model
+    // invariant requires a dn whenever there is no certificate (OCSP-SIGNER-002).
+    mandatoryFields: ['name', 'dn', 'private_key (keystore + name)'],
     inputSchema: z.object({
       name: z
         .string()
         .describe('Unique signer name (immutable primary key). Ask the user.'),
       dn: z
         .string()
-        .optional()
         .describe(
-          'Subject DN for the future CSR (e.g. "CN=MY-OCSP-SIGNER"). Set this on a ' +
-            'fresh signer that has no certificate yet.',
+          'Subject DN for the future CSR (e.g. "CN=MY-OCSP-SIGNER"). MANDATORY on ' +
+            'create: a fresh signer has no certificate yet, and the server rejects ' +
+            'a cert-less signer with no dn. Ask the user; do not invent it.',
         ),
       private_key: privateKeyShape.describe(
-        'Private key reference: { keystore, name, hash_algorithm?, use_pss? }.',
+        'MANDATORY. Private key reference: { keystore, name, hash_algorithm?, ' +
+          'use_pss? }. keystore + name are required and must already exist.',
       ),
       queue: z
         .string()
         .optional()
         .describe(
-          'Name of an existing queue to attach (validated server-side).',
+          'OPTIONAL. Name of an existing queue to attach (validated server-side).',
         ),
       on_expiration_triggers: z
         .array(z.string())
         .optional()
         .describe(
-          'Trigger names fired on ON_OCSP_SIGNER_EXPIRATION. Each must reference ' +
-            'an existing trigger.',
+          'OPTIONAL. Trigger names fired on ON_OCSP_SIGNER_EXPIRATION. Each must ' +
+            'reference an existing trigger.',
         ),
     }),
     buildPayload: (args) => {
@@ -203,35 +218,48 @@ export function registerSignerTools(
   // --- update ---------------------------------------------------------------
   registerUpdateTool(server, client, SIGNER_SPEC, {
     description:
-      'Update an OCSP signer (full-replace, keyed by name). NOTE: once the signer ' +
-      'has a certificate, its certificate and privateKey keystore/alias are ' +
-      'immutable (only hash_algorithm / use_pss are applied) and dn is cleared. ' +
-      'Omitted optional fields are reset. Requires the VA module.',
+      'Update an OCSP signer (full-replace, keyed by name). MANDATORY: name (the ' +
+      'immutable lookup key) - ask the user; do not infer it. NOTE: once the ' +
+      'signer has a certificate, its certificate and privateKey keystore/alias ' +
+      'are immutable (only hash_algorithm / use_pss are applied) and dn is ' +
+      'cleared. Any optional field you OMIT keeps its current value (the tool ' +
+      're-sends it from the existing record via the GET-strip-merge-PUT cycle); ' +
+      'use clear_fields to explicitly null an optional field. ' +
+      'Requires the VA module.',
     inputSchema: z.object({
-      name: z.string().describe('Signer name to update (lookup key).'),
+      name: z
+        .string()
+        .describe('REQUIRED. Signer name to update (immutable lookup key).'),
       dn: z
         .string()
         .optional()
         .describe(
-          'Subject DN (only effective while the signer has no certificate).',
+          'OPTIONAL. Subject DN (only effective while the signer has no ' +
+            'certificate; forced to none once a certificate exists).',
         ),
       private_key: privateKeyShape
         .optional()
         .describe(
-          'Private key reference. Keystore/alias are ignored once a certificate ' +
-            'exists; hash_algorithm / use_pss are always applied.',
+          'OPTIONAL. Private key reference. keystore/alias are ignored once a ' +
+            'certificate exists; hash_algorithm / use_pss are always applied.',
         ),
-      queue: z.string().optional().describe('Existing queue name to attach.'),
+      queue: z
+        .string()
+        .optional()
+        .describe('OPTIONAL. Existing queue name to attach.'),
       on_expiration_triggers: z
         .array(z.string())
         .optional()
-        .describe('Trigger names for ON_OCSP_SIGNER_EXPIRATION.'),
+        .describe(
+          'OPTIONAL. Trigger names for ON_OCSP_SIGNER_EXPIRATION (each must ' +
+            'reference an existing trigger).',
+        ),
       clear_fields: z
         .array(z.string())
         .optional()
         .describe(
-          'Field names to explicitly null out (e.g. ["queue"]). Cannot target ' +
-            'immutable or server-managed fields.',
+          'OPTIONAL. Field names to explicitly null out (e.g. ["queue"]). Cannot ' +
+            'target immutable or server-managed fields.',
         ),
     }),
     buildOverrides: (args) => {
@@ -292,12 +320,22 @@ export function registerSignerTools(
         '(PUT /api/v1/cas, full-replace keyed by name), setting enableOCSP=true ' +
         'and ocspSigner=<signer name>. The signer must already exist (the server ' +
         'validates the reference). Requires the VA module on the CA.\n' +
+        'MANDATORY: ca (the target CA name) and ocsp_signer (the existing signer ' +
+        'name). Both are immutable identifiers - ask the user; do not infer or ' +
+        'invent them.\n' +
         'Safety tier: mutating-safe (idempotent: converges the CA to the assignment)',
       inputSchema: z.object({
-        ca: z.string().describe('CA name to assign the OCSP signer to.'),
+        ca: z
+          .string()
+          .describe(
+            'REQUIRED. CA name to assign the OCSP signer to (CA lookup key).',
+          ),
         ocsp_signer: z
           .string()
-          .describe('Name of an existing OCSP signer to bind to the CA.'),
+          .describe(
+            'REQUIRED. Name of an existing OCSP signer to bind to the CA ' +
+              '(server-validated reference).',
+          ),
       }),
     },
     async ({ ca, ocsp_signer }) => {

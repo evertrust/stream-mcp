@@ -65,8 +65,15 @@ export const ekuValueSchema = z.object({
 
 export const ekuSchema = z
   .object({
-    critical: z.boolean(),
-    values: z.array(ekuValueSchema),
+    critical: z
+      .boolean()
+      .describe('Mark the Extended Key Usage extension critical.'),
+    values: z
+      .array(ekuValueSchema)
+      .describe(
+        'EKU values. Non-built-in EKUs must reference an existing Custom EKU ' +
+          'by name (defined at /api/v1/extension/ekus).',
+      ),
   })
   .describe(
     'Extended Key Usage (eku). Non-built-in EKUs must reference an existing Custom EKU by name.',
@@ -80,16 +87,31 @@ export const aiaSchema = z
   .describe('Authority Information Access (aia).');
 
 export const policyElementSchema = z.object({
-  oid: z.string().describe('Policy OID (must be a valid OID).'),
-  cpsPointer: z.string().optional(),
-  organization: z.string().optional(),
-  noticeNumbers: z.array(z.number().int()).optional().describe('Default [].'),
-  explicitText: z.string().optional(),
+  oid: z.string().describe('Policy OID (required, must be a valid OID).'),
+  cpsPointer: z
+    .string()
+    .optional()
+    .describe('Optional CPS pointer URL for this policy.'),
+  organization: z
+    .string()
+    .optional()
+    .describe('Optional organization name (user notice).'),
+  noticeNumbers: z
+    .array(z.number().int())
+    .optional()
+    .describe('Optional user-notice notice numbers. Defaults to [].'),
+  explicitText: z
+    .string()
+    .optional()
+    .describe('Optional explicit user-notice text.'),
 });
 
 export const qcTransactionLimitSchema = z.object({
-  valueLimit: z.number().int(),
-  valueLimitExp: z.number().int(),
+  valueLimit: z.number().int().describe('Transaction value limit (integer).'),
+  valueLimitExp: z
+    .number()
+    .int()
+    .describe('Transaction value limit exponent (integer).'),
   currencyCode: z
     .string()
     .length(3)
@@ -98,18 +120,41 @@ export const qcTransactionLimitSchema = z.object({
 
 export const qcStatementSchema = z
   .object({
-    eTSIQCCompliance: z.boolean(),
-    eTSIQCSSCD: z.boolean(),
-    eTSIRetentionPeriod: z.number().int().min(0),
-    eTSIQCType: z.enum(QC_TYPE_VALUES),
+    eTSIQCCompliance: z
+      .boolean()
+      .describe('Required. ETSI QC compliance statement flag.'),
+    eTSIQCSSCD: z
+      .boolean()
+      .describe(
+        'Required. ETSI QC SSCD (secure signature creation device) flag.',
+      ),
+    eTSIRetentionPeriod: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Required. ETSI retention period in years (>= 0).'),
+    eTSIQCType: z
+      .enum(QC_TYPE_VALUES)
+      .describe(
+        'Required. ETSI QC type. Allowed: ESIGN, ESEAL, WEB, NONE (uppercase).',
+      ),
     eTSIPDS: z
       .record(z.string(), z.string())
       .optional()
-      .describe('Optional map of language -> URL.'),
-    eTSITransactionLimit: qcTransactionLimitSchema.optional(),
-    eTSILegislation: z.array(z.string()).optional(),
+      .describe('Optional map of language -> PKI Disclosure Statement URL.'),
+    eTSITransactionLimit: qcTransactionLimitSchema
+      .optional()
+      .describe('Optional ETSI transaction limit.'),
+    eTSILegislation: z
+      .array(z.string())
+      .optional()
+      .describe('Optional list of ETSI legislation country codes.'),
   })
-  .describe('eIDAS QC statement (qcStatement).');
+  .describe(
+    'eIDAS QC statement (qcStatement). The four base fields ' +
+      '(eTSIQCCompliance, eTSIQCSSCD, eTSIRetentionPeriod, eTSIQCType) are ' +
+      'required within this object.',
+  );
 
 export const privateKeyUsagePeriodSchema = z
   .object({
@@ -123,9 +168,15 @@ export const privateKeyUsagePeriodSchema = z
   .describe('Private Key Usage Period (privateKeyUsagePeriod).');
 
 export const dnElementSchema = z.object({
-  type: z.enum(DN_ELEMENT_VALUES).describe('DN element type.'),
-  mandatory: z.boolean(),
-  editable: z.boolean(),
+  type: z
+    .enum(DN_ELEMENT_VALUES)
+    .describe('Required. DN element type (e.g. CN, OU, O, C).'),
+  mandatory: z
+    .boolean()
+    .describe('Required. Whether this DN element must be present.'),
+  editable: z
+    .boolean()
+    .describe('Required. Whether the requester may edit this DN element.'),
   value: z
     .string()
     .optional()
@@ -141,9 +192,21 @@ export const dnElementSchema = z.object({
 });
 
 export const sanElementSchema = z.object({
-  type: z.enum(SAN_TYPE_VALUES).describe('SAN element type.'),
-  min: z.number().int().min(0).optional(),
-  max: z.number().int().min(0).optional(),
+  type: z
+    .enum(SAN_TYPE_VALUES)
+    .describe('Required. SAN element type (e.g. DNSNAME, IPADDRESS, URI).'),
+  min: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe('Optional minimum count for this SAN type (>= 0, <= max).'),
+  max: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe('Optional maximum count for this SAN type (>= 0, >= min).'),
   regex: z
     .string()
     .optional()
@@ -151,10 +214,22 @@ export const sanElementSchema = z.object({
 });
 
 export const extensionElementSchema = z.object({
-  type: z.enum(EXTENSION_TYPE_VALUES).describe('Microsoft extension type.'),
-  value: z.string().optional().describe('ms_sid must NOT carry a value.'),
-  mandatory: z.boolean(),
-  editable: z.boolean(),
+  type: z
+    .enum(EXTENSION_TYPE_VALUES)
+    .describe(
+      'Required. Microsoft extension type. Allowed: ms_sid, ms_template, ' +
+        'ms_template_v2.',
+    ),
+  value: z
+    .string()
+    .optional()
+    .describe('Optional value. ms_sid must NOT carry a value.'),
+  mandatory: z
+    .boolean()
+    .describe('Required. Whether this extension must be present.'),
+  editable: z
+    .boolean()
+    .describe('Required. Whether the requester may edit this extension.'),
 });
 
 // ---------------------------------------------------------------------------

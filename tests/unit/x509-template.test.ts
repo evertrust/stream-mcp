@@ -196,6 +196,28 @@ describe('registerX509TemplateTools', () => {
     expect('subject' in body).toBe(false);
   });
 
+  it('create_template requires ku with at least one value (preValidate)', async () => {
+    const { client, byName } = setup();
+    // ku present but empty values -> rejected, no POST.
+    const empty = await byName('create_template').h({
+      name: 'no-ku',
+      lifetime: '365d',
+      enabled: true,
+      crldps_from_ca: false,
+      aia_from_ca: false,
+      policy_from_ca: false,
+      qc_statement_from_ca: false,
+      ku: { critical: true, values: [] },
+    });
+    expect(empty.content[0].text).toMatch(/at least one Key Usage value/);
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('create_template lists ku as a mandatory field in its description', () => {
+    const { byName } = setup();
+    expect(byName('create_template').c.description).toMatch(/MANDATORY[^]*ku/);
+  });
+
   it('update_template GET-strips id, merges overrides (camelCase), PUTs to collection root', async () => {
     const { client, byName } = setup();
     // current record as read back (id present, FiniteDuration human form)

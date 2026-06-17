@@ -280,8 +280,10 @@ export function registerUpdateTool<S extends z.ZodObject<z.ZodRawShape>>(
     {
       description:
         `${opts.description}\nSafety tier: mutating-safe\n` +
-        `Update is GET -> strip server fields -> merge -> PUT (full-replace: omitted ` +
-        `optional fields are reset). ${immutableNote(spec)}${refFooter(spec)}`,
+        `Update is a full-replace done as GET -> strip server fields -> merge your ` +
+        `changes -> PUT: any field you OMIT keeps its current value (the tool ` +
+        `re-sends it from the existing record). Use clear_fields to explicitly null ` +
+        `an optional field. ${immutableNote(spec)}${refFooter(spec)}`,
       inputSchema: opts.inputSchema,
     },
     async (args: z.infer<S>) => {

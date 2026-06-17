@@ -27,23 +27,35 @@ const duration = z
 // SignerPrivateKey -------------------------------------------------------------
 export const signerPrivateKeySchema = z
   .object({
-    keystore: z.string().describe('Name of an existing keystore.'),
-    name: z.string().describe('Private-key alias inside that keystore.'),
+    keystore: z
+      .string()
+      .describe(
+        'REQUIRED. Name of an existing keystore (cross-ref validated).',
+      ),
+    name: z
+      .string()
+      .describe(
+        'REQUIRED. Private-key alias inside that keystore (must already exist).',
+      ),
     hashAlgorithm: z
       .enum(HASH_ALGORITHMS)
       .optional()
-      .describe('Omit for EC/EdDSA keys.'),
+      .describe(
+        `Optional. Signature hash; one of ${HASH_ALGORITHMS.join(' | ')}. Omit for EC/EdDSA keys.`,
+      ),
     usePSS: z
       .boolean()
       .optional()
-      .describe('RSA-PSS; only valid on a PKCS11 RSA key.'),
+      .describe('Optional. RSA-PSS; only valid on a PKCS11 RSA key.'),
   })
   .strict();
 
 // archiveCutoff ----------------------------------------------------------------
 const archiveCutoffSchema = z
   .object({
-    mode: z.enum(ARCHIVE_CUTOFF_MODES),
+    mode: z
+      .enum(ARCHIVE_CUTOFF_MODES)
+      .describe(`REQUIRED. One of ${ARCHIVE_CUTOFF_MODES.join(' | ')}.`),
     retentionPeriod: duration
       .optional()
       .describe('Required iff mode=retention; forbidden iff mode=issuer.'),
@@ -53,87 +65,169 @@ const archiveCutoffSchema = z
 // aia --------------------------------------------------------------------------
 const aiaSchema = z
   .object({
-    certificate: z.array(z.string()).optional(),
-    ocsp: z.array(z.string()).optional(),
+    certificate: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. CA-issuer (CRT) URLs.'),
+    ocsp: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. OCSP responder URLs.'),
   })
   .strict();
 
 // CertificatePolicy ------------------------------------------------------------
 const certificatePolicySchema = z
   .object({
-    oid: z.string().describe('Valid OID.'),
-    cpsPointer: z.string().optional(),
-    organization: z.string().optional(),
-    noticeNumbers: z.array(z.number().int()).optional(),
-    explicitText: z.string().optional(),
+    oid: z.string().describe('REQUIRED. Valid policy OID.'),
+    cpsPointer: z.string().optional().describe('Optional. CPS URI.'),
+    organization: z
+      .string()
+      .optional()
+      .describe('Optional. Notice organization.'),
+    noticeNumbers: z
+      .array(z.number().int())
+      .optional()
+      .describe('Optional. User-notice numbers (default []).'),
+    explicitText: z
+      .string()
+      .optional()
+      .describe('Optional. Notice explicit text.'),
   })
   .strict();
 
 // overridePermissions ----------------------------------------------------------
 const overridePermissionsSchema = z
   .object({
-    ku: z.boolean().optional(),
-    eku: z.boolean().optional(),
-    emptyExtensions: z.boolean().optional(),
-    crldps: z.boolean().optional(),
-    aia: z.boolean().optional(),
-    policy: z.boolean().optional(),
-    pathlen: z.boolean().optional(),
-    lifetime: z.boolean().optional(),
-    backdate: z.boolean().optional(),
-    checkPoP: z.boolean().optional(),
-    extraCsrExtensions: z.boolean().optional(),
+    ku: z.boolean().optional().describe('Optional. Allow key-usage override.'),
+    eku: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow extended-key-usage override.'),
+    emptyExtensions: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow empty extensions.'),
+    crldps: z.boolean().optional().describe('Optional. Allow CRL-DP override.'),
+    aia: z.boolean().optional().describe('Optional. Allow AIA override.'),
+    policy: z.boolean().optional().describe('Optional. Allow policy override.'),
+    pathlen: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow path-length override.'),
+    lifetime: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow lifetime override.'),
+    backdate: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow backdating override.'),
+    checkPoP: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow proof-of-possession check override.'),
+    extraCsrExtensions: z
+      .boolean()
+      .optional()
+      .describe('Optional. Allow extra CSR extensions.'),
   })
   .strict();
 
 // crlPolicy --------------------------------------------------------------------
 const crlPolicySchema = z
   .object({
-    hardGeneration: z.string().optional().describe('Quartz cron string.'),
-    lazyGeneration: z.string().optional().describe('Quartz cron string.'),
-    validity: duration.describe('CRL validity window, e.g. "28 days".'),
-    eidas: z.boolean(),
+    hardGeneration: z
+      .string()
+      .optional()
+      .describe('Optional. Quartz cron for scheduled full regeneration.'),
+    lazyGeneration: z
+      .string()
+      .optional()
+      .describe('Optional. Quartz cron for scheduled lazy regeneration.'),
+    validity: duration.describe(
+      'REQUIRED. CRL validity window, e.g. "28 days".',
+    ),
+    eidas: z.boolean().describe('REQUIRED. eIDAS-compliant CRL (boolean).'),
   })
   .strict();
 
 // qcStatement ------------------------------------------------------------------
 const qcStatementSchema = z
   .object({
-    eTSIQCCompliance: z.boolean(),
-    eTSIQCSSCD: z.boolean(),
-    eTSIRetentionPeriod: z.number().int().min(0),
-    eTSIQCType: z.enum(QC_TYPES),
-    eTSIPDS: z.record(z.string(), z.string()).optional(),
+    eTSIQCCompliance: z
+      .boolean()
+      .describe('REQUIRED. eIDAS QC compliance flag (boolean).'),
+    eTSIQCSSCD: z.boolean().describe('REQUIRED. QSCD/SSCD flag (boolean).'),
+    eTSIRetentionPeriod: z
+      .number()
+      .int()
+      .min(0)
+      .describe('REQUIRED. Retention period in years (integer >= 0).'),
+    eTSIQCType: z
+      .enum(QC_TYPES)
+      .describe(`REQUIRED. One of ${QC_TYPES.join(' | ')}.`),
+    eTSIPDS: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe('Optional. PKI Disclosure Statements as lang->url map.'),
     eTSITransactionLimit: z
       .object({
         // Scala QCTransactionLimit takes Int for both (server: error.expected.int
         // on a float). currencyCode must be 3 uppercase chars (server-enforced).
-        valueLimit: z.number().int(),
-        valueLimitExp: z.number().int(),
-        currencyCode: z.string(),
+        valueLimit: z
+          .number()
+          .int()
+          .describe('REQUIRED. Limit mantissa (int).'),
+        valueLimitExp: z
+          .number()
+          .int()
+          .describe('REQUIRED. Limit exponent (int).'),
+        currencyCode: z
+          .string()
+          .describe('REQUIRED. 3 uppercase chars, e.g. "EUR".'),
       })
       .strict()
-      .optional(),
-    eTSILegislation: z.array(z.string()).optional(),
+      .optional()
+      .describe('Optional. eIDAS transaction value limit.'),
+    eTSILegislation: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Country/legislation codes.'),
   })
   .strict();
 
 // triggers (superset of managed + external trigger maps) -----------------------
+const triggerNames = z
+  .array(z.string())
+  .optional()
+  .describe('Optional. Array of existing trigger names.');
+
 const triggersSchema = z
   .object({
     // managed
-    onCRLGeneration: z.array(z.string()).optional(),
-    onCRLGenerationError: z.array(z.string()).optional(),
-    onCRLGenerationRecover: z.array(z.string()).optional(),
+    onCRLGeneration: triggerNames.describe(
+      'Optional (managed). Trigger names.',
+    ),
+    onCRLGenerationError: triggerNames.describe(
+      'Optional (managed). Trigger names.',
+    ),
+    onCRLGenerationRecover: triggerNames.describe(
+      'Optional (managed). Trigger names.',
+    ),
     // external
-    onCRLUpdate: z.array(z.string()).optional(),
-    onCRLUpdateError: z.array(z.string()).optional(),
-    onCRLUpdateRecover: z.array(z.string()).optional(),
+    onCRLUpdate: triggerNames.describe('Optional (external). Trigger names.'),
+    onCRLUpdateError: triggerNames.describe(
+      'Optional (external). Trigger names.',
+    ),
+    onCRLUpdateRecover: triggerNames.describe(
+      'Optional (external). Trigger names.',
+    ),
     // shared
-    onCRLSync: z.array(z.string()).optional(),
-    onCRLSyncError: z.array(z.string()).optional(),
-    onCRLExpiration: z.array(z.string()).optional(),
-    onCAExpiration: z.array(z.string()).optional(),
+    onCRLSync: triggerNames.describe('Optional. Trigger names.'),
+    onCRLSyncError: triggerNames.describe('Optional. Trigger names.'),
+    onCRLExpiration: triggerNames.describe('Optional. Trigger names.'),
+    onCAExpiration: triggerNames.describe('Optional. Trigger names.'),
   })
   .strict();
 
@@ -142,59 +236,139 @@ const triggersSchema = z
 // ---------------------------------------------------------------------------
 export const caConfigSchema = z
   .object({
-    type: z.enum(CA_TYPES).describe('Discriminator: managed | external.'),
-    name: z.string().describe('Immutable primary key.'),
-    description: z.string().optional(),
+    type: z
+      .enum(CA_TYPES)
+      .describe(
+        'REQUIRED. Discriminator: managed | external. Immutable. Ask the user.',
+      ),
+    name: z
+      .string()
+      .describe(
+        'REQUIRED. Immutable primary key. Ask the user; never invent or infer it.',
+      ),
+    description: z
+      .string()
+      .optional()
+      .describe('Optional. Free-text description.'),
 
     // common trait
     certificate: z
       .string()
       .optional()
       .describe(
-        'PEM string. MANDATORY for external; managed: omit until issued (or supply to import).',
+        'PEM string. REQUIRED for external; managed: omit until issued (or supply to import a cert+key, in which case dn must be omitted).',
       ),
-    trustedForClientAuthentication: z.boolean(),
-    trustedForServerAuthentication: z.boolean(),
-    compromised: z.boolean().optional(),
+    trustedForClientAuthentication: z
+      .boolean()
+      .describe('REQUIRED (both types). No server default — boolean.'),
+    trustedForServerAuthentication: z
+      .boolean()
+      .describe('REQUIRED (both types). No server default — boolean.'),
+    compromised: z
+      .boolean()
+      .optional()
+      .describe('Optional. Marks the CA as compromised.'),
     enableOCSP: z
       .boolean()
       .optional()
-      .describe('Stripped unless VA module licensed.'),
-    ocspSigner: z.string().optional().describe('Existing OCSP signer name.'),
-    archiveCutoff: archiveCutoffSchema.optional(),
-    ocspResponseMinimalDuration: duration.optional(),
-    triggers: triggersSchema.optional(),
+      .describe('Optional. Stripped unless VA module licensed.'),
+    ocspSigner: z
+      .string()
+      .optional()
+      .describe(
+        'Optional. Existing OCSP signer name. Stripped unless VA module licensed.',
+      ),
+    archiveCutoff: archiveCutoffSchema
+      .optional()
+      .describe('Optional. Archive cutoff policy.'),
+    ocspResponseMinimalDuration: duration
+      .optional()
+      .describe('Optional. Minimal OCSP response duration, e.g. "0 seconds".'),
+    triggers: triggersSchema
+      .optional()
+      .describe('Optional. Trigger-name arrays (per-type keys).'),
 
     // managed-only
-    enroll: z.boolean().optional(),
+    enroll: z
+      .boolean()
+      .optional()
+      .describe(
+        'REQUIRED for managed (no default). Whether this CA can enroll end-entity certs.',
+      ),
     dn: z
       .string()
       .optional()
       .describe(
-        'Subject DN; mandatory when certificate absent, forbidden when present.',
+        'Managed only. REQUIRED when certificate absent; MUST be omitted when certificate present. Must contain >=1 DN element (C= validated as a country code).',
       ),
-    privateKey: signerPrivateKeySchema.optional(),
-    altPrivateKey: signerPrivateKeySchema.optional(),
-    queue: z.string().optional(),
-    enforceKeyUnicity: z.boolean().optional(),
-    crldps: z.array(z.string()).optional(),
-    aia: aiaSchema.optional(),
-    policy: z.array(certificatePolicySchema).optional(),
-    qcStatement: qcStatementSchema.optional(),
-    overridePermissions: overridePermissionsSchema.optional(),
-    crlPolicy: crlPolicySchema.optional(),
+    privateKey: signerPrivateKeySchema
+      .optional()
+      .describe('REQUIRED for managed. Keystore + key alias used to sign.'),
+    altPrivateKey: signerPrivateKeySchema
+      .optional()
+      .describe('Optional (managed). Second key for hybrid (PQC) CAs.'),
+    queue: z
+      .string()
+      .optional()
+      .describe('Optional (managed). Existing signing queue name.'),
+    enforceKeyUnicity: z
+      .boolean()
+      .optional()
+      .describe(
+        'REQUIRED for managed (no default). Reject enrollment with a duplicate public-key thumbprint.',
+      ),
+    crldps: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'Optional (managed). CRL distribution point URLs embedded in issued certs.',
+      ),
+    aia: aiaSchema
+      .optional()
+      .describe('Optional (managed). Authority Information Access URLs.'),
+    policy: z
+      .array(certificatePolicySchema)
+      .optional()
+      .describe('Optional (managed). Certificate policies.'),
+    qcStatement: qcStatementSchema
+      .optional()
+      .describe('Optional (managed). eIDAS QC statement.'),
+    overridePermissions: overridePermissionsSchema
+      .optional()
+      .describe('Optional (managed). Per-field override flags.'),
+    crlPolicy: crlPolicySchema
+      .optional()
+      .describe(
+        'Optional (managed). CRL generation policy; required for generate_crl.',
+      ),
 
     // external-only
     crlUrls: z
       .array(z.string())
       .optional()
-      .describe('CRL download URLs; each must start with http://.'),
-    refresh: duration.optional(),
+      .describe(
+        'Optional (external). CRL download URLs; each MUST start with http:// (https rejected).',
+      ),
+    refresh: duration
+      .optional()
+      .describe(
+        'Optional (external). CRL re-download interval, e.g. "1 hour".',
+      ),
     outdatedRevocationStatusPolicy: z
       .enum(OUTDATED_REVOCATION_STATUS_POLICIES)
-      .optional(),
-    timeout: duration.optional(),
-    proxy: z.string().optional(),
+      .optional()
+      .describe(
+        `REQUIRED for external. One of ${OUTDATED_REVOCATION_STATUS_POLICIES.join(' | ')}.`,
+      ),
+    timeout: duration
+      .optional()
+      .describe(
+        'Optional (external). HTTP fetch timeout (default "5 seconds").',
+      ),
+    proxy: z
+      .string()
+      .optional()
+      .describe('Optional (external). Existing HTTP proxy name.'),
   })
   .strict();
 

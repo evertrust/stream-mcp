@@ -119,16 +119,23 @@ export function registerEkuTools(
         '(immutable lookup key) and is sent in the body — there is no path param ' +
         '(PUT-on-collection-root). ONLY the name is updatable; the new name must be ' +
         'globally unique (else EKU-004). Standard/default EKUs cannot be updated ' +
-        '(EKU-005); an unknown oid returns EKU-003.\nSafety tier: mutating-safe',
+        '(EKU-005); an unknown oid returns EKU-003.\nSafety tier: mutating-safe\n' +
+        'MANDATORY fields: oid (lookup key — identifies which EKU to update) and ' +
+        'name (the new value). Ask the user for both — never infer them, especially ' +
+        'the oid, which is the immutable identifier of the target EKU.',
       inputSchema: z.object({
         oid: z
           .string()
           .min(1)
-          .describe('OID of the custom EKU to update (lookup key; immutable).'),
+          .describe(
+            'OID of the custom EKU to update (lookup key; immutable). Ask the user — never infer.',
+          ),
         name: z
           .string()
           .min(1)
-          .describe('New display name (globally unique across all EKUs).'),
+          .describe(
+            'New display name (globally unique across all EKUs). Ask the user — never infer.',
+          ),
       }),
     },
     async ({ oid, name }) => {

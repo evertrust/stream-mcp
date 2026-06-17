@@ -34,22 +34,35 @@ const typeEnum = z.enum(SYSTEM_CONFIGURATION_TYPES);
 //   license          : optional triggers.onLicenseExpiration (string[] of trigger names)
 //   internal_monitor : required cron (Quartz cron string)
 const licenseSchema = z.object({
-  type: z.literal('license'),
+  type: z
+    .literal('license')
+    .describe(
+      'Discriminator. Must be "license" for the license configuration entry. ' +
+        'This is also the upsert key — ask the user which entry type they mean; do not infer.',
+    ),
   on_license_expiration: z
     .array(z.string())
     .optional()
     .describe(
-      'Names of pre-existing triggers fired on license expiration (LicenseTriggers.onLicenseExpiration). Omit for no triggers.',
+      'Optional. Names of pre-existing triggers fired on license expiration ' +
+        '(LicenseTriggers.onLicenseExpiration). Omit for no triggers. ' +
+        'The trigger names must already exist on the server.',
     ),
 });
 
 const internalMonitorSchema = z.object({
-  type: z.literal('internal_monitor'),
+  type: z
+    .literal('internal_monitor')
+    .describe(
+      'Discriminator. Must be "internal_monitor" for the internal monitor entry. ' +
+        'This is also the upsert key — ask the user which entry type they mean; do not infer.',
+    ),
   cron: z
     .string()
     .min(1)
     .describe(
-      'Quartz cron expression for the internal monitor, e.g. "0 0 0 ? * * *". Required.',
+      'MANDATORY. Quartz cron expression for the internal monitor, e.g. "0 0 0 ? * * *". ' +
+        'Ask the user for the schedule — do not invent a cron. Invalid cron -> Stream validation error.',
     ),
 });
 
@@ -122,8 +135,11 @@ export function registerSystemConfigurationTools(
     {
       description:
         'Create or update a system configuration entry. Keyed by `type` (NOT id): if an entry of the same type exists it is full-replaced (reusing its id), otherwise it is created. ' +
-        'There is no separate create/delete — this PUT is the only write.\n' +
-        'For type=internal_monitor, `cron` is REQUIRED (Quartz cron). For type=license, triggers are optional.\n' +
+        'There is no separate create/delete — this PUT is the only write. Full-replace: omitted optional fields are reset.\n' +
+        'MANDATORY per type — ask the user for these values, do not infer them:\n' +
+        '  - type=internal_monitor: type, cron (Quartz cron expression).\n' +
+        '  - type=license: type only (triggers/on_license_expiration are optional).\n' +
+        '`type` is the immutable upsert key — confirm with the user which entry they mean; never guess it.\n' +
         'Safety tier: mutating-safe (idempotent upsert)',
       inputSchema: upsertSchema,
     },

@@ -118,10 +118,14 @@ export function registerAuthorityTools(
   // --- update ---------------------------------------------------------------
   registerUpdateTool(server, client, AUTHORITY_SPEC, {
     description:
-      'Update a timestamping authority (full-replace, keyed by name). signer, ' +
-      'policyOid, ntpClients and the other fields may all be changed (subject ' +
-      'to existence/uniqueness checks). Omitted optional fields are reset. ' +
-      'Requires the TSA module.',
+      'Update a timestamping authority (full-replace, keyed by name; name is ' +
+      'required as the lookup key). signer, policyOid, ntpClients and the other ' +
+      'fields may all be changed (subject to existence/uniqueness checks). Pass ' +
+      'only the fields you want to change; any field you omit keeps its current ' +
+      'value (the tool fetches the existing record and merges your changes). All ' +
+      'of policy_oid, enabled, signer, accepted_hash_algorithms (>=1), ntp_clients ' +
+      '(>=1) and check_revocation remain server-mandatory, so a fully replaced ' +
+      'authority must still have all of them. Requires the TSA module.',
     inputSchema: z.object({
       name: z.string().describe('TSA name to update (lookup key).'),
       policy_oid: z

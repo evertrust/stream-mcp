@@ -52,8 +52,16 @@ const cronSchema = z
 
 const privateKeySchema = z
   .object({
-    keystore: z.string().min(1).describe('Existing keystore name.'),
-    name: z.string().min(1).describe('Private-key alias inside the keystore.'),
+    keystore: z
+      .string()
+      .min(1)
+      .describe('MANDATORY. Existing keystore name. Ask the user.'),
+    name: z
+      .string()
+      .min(1)
+      .describe(
+        'MANDATORY. Private-key alias inside the keystore. Ask the user.',
+      ),
     hash_algorithm: z
       .enum(SSH_HASH_ALGORITHMS)
       .optional()
@@ -69,35 +77,62 @@ const overridePermissionsSchema = z
     type: z
       .boolean()
       .optional()
-      .describe('Allow enroll requests to override certificate type.'),
+      .describe(
+        'Optional. Allow enroll requests to override certificate type.',
+      ),
     backdate: z
       .boolean()
       .optional()
-      .describe('Allow enroll requests to override backdate.'),
+      .describe('Optional. Allow enroll requests to override backdate.'),
     lifetime: z
       .boolean()
       .optional()
-      .describe('Allow enroll requests to override lifetime.'),
+      .describe('Optional. Allow enroll requests to override lifetime.'),
   })
-  .describe('Which enroll-request fields this CA permits overriding.');
+  .describe(
+    'Optional. Which enroll-request fields this CA permits overriding. All ' +
+      'sub-fields optional; absent is treated as false.',
+  );
 
 const triggersSchema = z
   .object({
-    on_krl_generation: z.array(z.string()).optional(),
-    on_krl_generation_error: z.array(z.string()).optional(),
-    on_krl_generation_recover: z.array(z.string()).optional(),
-    on_krl_sync: z.array(z.string()).optional(),
-    on_krl_sync_error: z.array(z.string()).optional(),
+    on_krl_generation: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Trigger names fired on KRL generation.'),
+    on_krl_generation_error: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Trigger names fired on KRL generation error.'),
+    on_krl_generation_recover: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Trigger names fired on KRL generation recovery.'),
+    on_krl_sync: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Trigger names fired on KRL sync.'),
+    on_krl_sync_error: z
+      .array(z.string())
+      .optional()
+      .describe('Optional. Trigger names fired on KRL sync error.'),
   })
-  .describe('KRL-related trigger hooks (arrays of trigger names).');
+  .describe(
+    'Optional. KRL-related trigger hooks (arrays of trigger names). All ' +
+      'sub-fields optional.',
+  );
 
 const krlPolicySchema = z
   .object({
     validity: durationSchema.describe(
       'KRL validity window, e.g. "14 days". MANDATORY.',
     ),
-    hard_generation: cronSchema.optional().describe('Cron for full KRL regen.'),
-    lazy_generation: cronSchema.optional().describe('Cron for lazy KRL regen.'),
+    hard_generation: cronSchema
+      .optional()
+      .describe('Optional. Quartz cron for full KRL regeneration.'),
+    lazy_generation: cronSchema
+      .optional()
+      .describe('Optional. Quartz cron for lazy KRL regeneration.'),
   })
   .describe('KRL generation/validity policy. validity is mandatory.');
 
@@ -240,10 +275,12 @@ export function registerSshCaTools(
 
   registerCreateTool(server, client, SPEC, {
     description:
-      'Create an SSH Certificate Authority. The signing key is referenced via ' +
-      'privateKey {keystore, name}; the server DERIVES publicKey from it (never ' +
-      'send publicKey). krlPolicy.validity, enroll and enforceKeyUnicity are ' +
-      'mandatory. Fails (SSH-CA-004) if the name already exists.',
+      'Create an SSH Certificate Authority. MANDATORY: name, private_key ' +
+      '(keystore + name), enroll, enforce_key_unicity, krl_policy (validity). ' +
+      'Ask the user for each; do not infer or invent them (especially the ' +
+      'immutable name). The signing key is referenced via private_key ' +
+      '{keystore, name}; the server DERIVES publicKey from it (never send ' +
+      'publicKey). Fails (SSH-CA-004) if the name already exists.',
     mandatoryFields: [
       'name',
       'private_key',
@@ -252,14 +289,23 @@ export function registerSshCaTools(
       'krl_policy',
     ],
     inputSchema: z.object({
-      name: z.string().min(1).describe('Immutable CA name (primary key).'),
+      name: z
+        .string()
+        .min(1)
+        .describe(
+          'MANDATORY. Immutable CA name (primary key). Ask the user; do not ' +
+            'invent it.',
+        ),
       private_key: privateKeySchema,
       enroll: z
         .boolean()
-        .describe('If false, enrollment on this CA is rejected.'),
+        .describe('MANDATORY. If false, enrollment on this CA is rejected.'),
       enforce_key_unicity: z
         .boolean()
-        .describe('If true, an enroll fails when the key thumbprint exists.'),
+        .describe(
+          'MANDATORY. If true, an enroll fails when the key thumbprint ' +
+            'already exists on this CA.',
+        ),
       krl_policy: krlPolicySchema,
       ...optionalShape,
     }),
@@ -270,14 +316,42 @@ export function registerSshCaTools(
     description:
       'Update an SSH Certificate Authority by name (PUT full-replace keyed by ' +
       'body name). GET -> strip id/publicKey -> merge supplied fields -> PUT. ' +
-      'publicKey is re-derived server-side from privateKey. Omitted optional ' +
-      'fields are reset by the full replace; use clear_fields to null one.',
+      'publicKey is re-derived server-side from privateKey. Any optional field ' +
+      'you OMIT keeps its current value (the tool re-sends it from the existing ' +
+      'record); use clear_fields to explicitly null an optional field.',
     inputSchema: z.object({
-      name: z.string().min(1).describe('CA name to update (lookup key).'),
-      private_key: privateKeySchema.optional(),
-      enroll: z.boolean().optional(),
-      enforce_key_unicity: z.boolean().optional(),
-      krl_policy: krlPolicySchema.optional(),
+      name: z
+        .string()
+        .min(1)
+        .describe(
+          'REQUIRED. Immutable CA name used as the lookup key for the ' +
+            'full-replace update. Ask the user; do not infer.',
+        ),
+      private_key: privateKeySchema
+        .optional()
+        .describe(
+          'Optional on update. Reference to the signing keystore key ' +
+            '{keystore, name}. If omitted, the existing privateKey is kept.',
+        ),
+      enroll: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional on update. If false, enrollment on this CA is rejected.',
+        ),
+      enforce_key_unicity: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional on update. If true, an enroll fails when the key ' +
+            'thumbprint already exists on this CA.',
+        ),
+      krl_policy: krlPolicySchema
+        .optional()
+        .describe(
+          'Optional on update. KRL generation/validity policy; validity is ' +
+            'mandatory inside krl_policy when supplied.',
+        ),
       ...optionalShape,
       clear_fields: z
         .array(z.string())

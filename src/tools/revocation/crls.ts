@@ -99,6 +99,8 @@ export function registerCrlTools(
         "Reschedule a CA's next CRL refresh/regeneration time. This is the ONLY " +
         'mutable field of a CRL information record via the API; everything else ' +
         '(number, thisUpdate, nextUpdate, size, type) is system-managed.\n' +
+        'MANDATORY: ca (the CRL/CA lookup key) and next_refresh. Ask the user for ' +
+        'both; do not infer or invent them.\n' +
         'IMPORTANT: next_refresh must be a valid ISO-8601 instant STRICTLY in ' +
         'the future. The server silently ignores a past/now value (returns 200 ' +
         'with the record UNCHANGED), so always pass a future timestamp.\n' +
@@ -106,11 +108,13 @@ export function registerCrlTools(
       inputSchema: z.object({
         ca: z
           .string()
-          .describe('Exact CA name whose CRL refresh to reschedule.'),
+          .describe(
+            'REQUIRED. Exact CA name whose CRL refresh to reschedule (lookup key).',
+          ),
         next_refresh: z
           .string()
           .describe(
-            'New next-refresh time as an ISO-8601 instant (e.g. ' +
+            'REQUIRED. New next-refresh time as an ISO-8601 instant (e.g. ' +
               '"2026-12-31T00:00:00Z"). Must be strictly in the future to take effect.',
           ),
       }),

@@ -133,7 +133,9 @@ export function registerSignerTools(
             'at create since the signer has no certificate yet.',
         ),
       private_key: privateKeyShape.describe(
-        'Private key reference: { keystore, name, hash_algorithm?, use_pss? }.',
+        'Private key reference. MANDATORY sub-fields: keystore (existing ' +
+          'keystore name) and name (private-key alias inside it) - ask the user ' +
+          'for both, do not infer. Optional: hash_algorithm, use_pss.',
       ),
       queue: z
         .string()
@@ -165,11 +167,14 @@ export function registerSignerTools(
   // --- update ---------------------------------------------------------------
   registerUpdateTool(server, client, SIGNER_SPEC, {
     description:
-      'Update a timestamping signer (full-replace, keyed by name). To attach a ' +
-      'signed certificate to a signer that has none, pass certificate_pem. NOTE: ' +
-      'once the signer has a certificate, its certificate and privateKey ' +
-      'keystore/alias are immutable (only hash_algorithm / use_pss are applied) ' +
-      'and dn is cleared. Omitted optional fields are reset. Requires the TSA module.',
+      'Update a timestamping signer (full-replace, keyed by name; name is ' +
+      'required as the lookup key). To attach a signed certificate to a signer ' +
+      'that has none, pass certificate_pem. NOTE: once the signer has a ' +
+      'certificate, its certificate and privateKey keystore/alias are immutable ' +
+      '(only hash_algorithm / use_pss are applied) and dn is cleared. Pass only ' +
+      'the fields you want to change; any field you omit keeps its current value ' +
+      '(the tool fetches the existing record and merges your changes). To null an ' +
+      'optional field use clear_fields. Requires the TSA module.',
     inputSchema: z.object({
       name: z.string().describe('Signer name to update (lookup key).'),
       certificate_pem: z

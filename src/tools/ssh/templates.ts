@@ -45,19 +45,21 @@ const principalPolicySchema = z
       .int()
       .positive()
       .optional()
-      .describe('Min number of principals (must be > 0).'),
+      .describe('Optional. Min number of principals (must be > 0).'),
     max: z
       .number()
       .int()
       .positive()
       .optional()
-      .describe('Max number of principals (must be > 0 and >= min).'),
+      .describe('Optional. Max number of principals (must be > 0 and >= min).'),
     regex: z
       .string()
       .optional()
-      .describe('Java regex each principal must fully match.'),
+      .describe('Optional. Java regex each principal must fully match.'),
   })
-  .describe('Constraints on enroll principals.');
+  .describe(
+    'Optional. Constraints on enroll principals. All sub-fields optional.',
+  );
 
 function buildPrincipalPolicy(
   p: z.infer<typeof principalPolicySchema>,
@@ -107,14 +109,20 @@ const optionalShape = {
     .enum(SSH_CERTIFICATE_TYPES)
     .optional()
     .describe(
-      'Certificate type (USER/HOST). If omitted, the enroll request supplies ' +
-        'it (subject to CA override).',
+      'Optional. Certificate type (allowed values: USER, HOST). If omitted, ' +
+        'the enroll request supplies it (subject to CA override).',
     ),
-  backdate: durationSchema.optional().describe('Backdate validity start.'),
+  backdate: durationSchema
+    .optional()
+    .describe('Optional. Backdate validity start (FiniteDuration).'),
   authorized_key_types: z
     .array(z.enum(SSH_AUTHORIZED_KEY_TYPES))
     .optional()
-    .describe('Whitelist of allowed SSH key types.'),
+    .describe(
+      'Optional. Whitelist of allowed SSH key types (allowed values: ' +
+        'ssh-rsa, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ' +
+        'ecdsa-sha2-nistp521, ssh-ed25519).',
+    ),
   principal_policy: principalPolicySchema.optional(),
 };
 
@@ -133,20 +141,28 @@ export function registerSshTemplateTools(
 
   registerCreateTool(server, client, SPEC, {
     description:
-      'Create an SSH certificate template. `name`, `enabled` and `lifetime` ' +
-      '(FiniteDuration) are mandatory. authorizedKeyTypes is a server-validated ' +
-      'whitelist. Fails (SSH-TEMPLATE-004) if the name already exists.',
+      'Create an SSH certificate template. MANDATORY: name, enabled, lifetime ' +
+      '(FiniteDuration). Ask the user for each; do not infer or invent them ' +
+      '(especially the immutable name). authorizedKeyTypes is a server-' +
+      'validated whitelist. Fails (SSH-TEMPLATE-004) if the name already exists.',
     mandatoryFields: ['name', 'enabled', 'lifetime'],
     inputSchema: z.object({
       name: z
         .string()
         .min(1)
-        .describe('Immutable template name (primary key).'),
+        .describe(
+          'MANDATORY. Immutable template name (primary key). Ask the user; ' +
+            'do not invent it.',
+        ),
       enabled: z
         .boolean()
-        .describe('Disabled templates are not usable for enroll.'),
+        .describe(
+          'MANDATORY. Whether the template is enabled. Disabled templates ' +
+            'are not usable for enroll and are excluded from the requestable ' +
+            'list.',
+        ),
       lifetime: durationSchema.describe(
-        'Certificate validity, e.g. "30 days". MANDATORY.',
+        'MANDATORY. Certificate validity (FiniteDuration), e.g. "30 days".',
       ),
       ...optionalShape,
     }),
@@ -157,13 +173,30 @@ export function registerSshTemplateTools(
   registerUpdateTool(server, client, SPEC, {
     description:
       'Update an SSH certificate template by name (PUT full-replace keyed by ' +
-      'body name). GET -> strip id -> merge supplied fields -> PUT. Omitted ' +
-      'optional fields are reset by the full replace; use clear_fields to null ' +
-      'one.',
+      'body name). GET -> strip id -> merge supplied fields -> PUT. Any optional ' +
+      'field you OMIT keeps its current value (the tool re-sends it from the ' +
+      'existing record); use clear_fields to explicitly null an optional field.',
     inputSchema: z.object({
-      name: z.string().min(1).describe('Template name to update (lookup key).'),
-      enabled: z.boolean().optional(),
-      lifetime: durationSchema.optional(),
+      name: z
+        .string()
+        .min(1)
+        .describe(
+          'REQUIRED. Immutable template name used as the lookup key for the ' +
+            'full-replace update. Ask the user; do not infer.',
+        ),
+      enabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional on update. Whether the template is enabled. If omitted, ' +
+            'the existing value is kept.',
+        ),
+      lifetime: durationSchema
+        .optional()
+        .describe(
+          'Optional on update. Certificate validity (FiniteDuration), e.g. ' +
+            '"30 days". If omitted, the existing value is kept.',
+        ),
       ...optionalShape,
       clear_fields: z
         .array(z.string())

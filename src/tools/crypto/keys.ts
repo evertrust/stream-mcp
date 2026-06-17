@@ -106,7 +106,8 @@ export function registerKeyTools(
         'Not every algorithm is supported by every keystore type (AWS: RSA 2048/3072/4096 + EC P256/P384/P521 only; ' +
         'the server returns KEY-002 for unsupported combinations).\n' +
         'Safety tier: mutating-safe\n' +
-        'IMPORTANT: name is the immutable key identifier — ask the user, never invent it.',
+        'MANDATORY: name, keystore, algorithm. Ask the user for each; do NOT infer, default, or invent them. ' +
+        'name is the immutable key identifier — never invent it.',
       inputSchema: z.object({
         name: z
           .string()
@@ -116,21 +117,28 @@ export function registerKeyTools(
           ),
         keystore: z
           .string()
-          .describe('Existing keystore name to create the key on.'),
+          .describe(
+            'MANDATORY. Existing keystore name to create the key on. Ask the user.',
+          ),
         algorithm: z
           .enum(KEY_ALGORITHMS)
-          .describe('Asymmetric algorithm (CFAsymmetricAlgorithm wire value).'),
+          .describe(
+            'MANDATORY. Asymmetric algorithm (CFAsymmetricAlgorithm wire value). Ask the user. ' +
+              'Allowed: rsa-2048, rsa-3072, rsa-4096, rsa-8192, ec-secp256r1, ec-secp384r1, ' +
+              'ec-secp521r1, ed-25519, ed-448, mldsa-44, mldsa-65, mldsa-87, mldsa-44sha512, ' +
+              'mldsa-65sha512, mldsa-87sha512.',
+          ),
         extractable: z
           .boolean()
           .optional()
           .describe(
-            'PKCS#11/cloud honor where supported; software always extractable; AKV forces non-exportable.',
+            'Optional. PKCS#11/cloud honor where supported; software always extractable; AKV forces non-exportable.',
           ),
-        modifiable: z.boolean().optional().describe('PKCS#11 only.'),
+        modifiable: z.boolean().optional().describe('Optional. PKCS#11 only.'),
         hardware_protected: z
           .boolean()
           .optional()
-          .describe('AKV/GCP: select an HSM-backed key when true.'),
+          .describe('Optional. AKV/GCP: select an HSM-backed key when true.'),
       }),
     },
     async ({

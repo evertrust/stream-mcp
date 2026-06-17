@@ -27,6 +27,7 @@ import {
 } from '../_scaffold.js';
 import {
   buildTemplatePayload,
+  kuSchema,
   templateMandatoryShape,
   templateOptionalShape,
 } from './schemas.js';
@@ -64,8 +65,8 @@ export function registerX509TemplateTools(
     description:
       'Create an X509 certificate template (profile). Body is the full template. ' +
       'Note: a template has NO ca / keyType / signatureHashAlgorithm; validity is ' +
-      '`lifetime` (FiniteDuration like "365d"). At least one Key Usage value must ' +
-      'be defined. Fails if the name already exists.',
+      '`lifetime` (FiniteDuration like "365d"). `ku` (Key Usage) is required and ' +
+      'must define at least one value. Fails if the name already exists.',
     mandatoryFields: [
       'name',
       'lifetime',
@@ -74,11 +75,33 @@ export function registerX509TemplateTools(
       'aia_from_ca',
       'policy_from_ca',
       'qc_statement_from_ca',
+      'ku',
     ],
     inputSchema: z.object({
       ...templateMandatoryShape,
       ...templateOptionalShape,
+      // `ku` is Option in the model but the server's validateKu requires at
+      // least one KU value across the template; a template with no `ku` at all
+      // fails. So `ku` is effectively mandatory on create (see audit line 68).
+      // This override (after the optional shape) makes it a required param.
+      ku: kuSchema.describe(
+        'Required. Key Usage (ku). At least one KU value must be defined ' +
+          '(a template with no ku, or with an empty values list, is rejected ' +
+          'by the server). Ask the user which key usages this template needs.',
+      ),
     }),
+    preValidate: (args) => {
+      const ku = (args as { ku?: { values?: unknown[] } }).ku;
+      if (!ku || !Array.isArray(ku.values) || ku.values.length === 0) {
+        return (
+          'You must supply ku with at least one Key Usage value. The server ' +
+          'rejects a template that defines no Key Usage. Ask the user which ' +
+          'key usages this template needs (e.g. digitalSignature, ' +
+          'keyEncipherment, keyCertSign).'
+        );
+      }
+      return undefined;
+    },
     buildPayload: (args) => buildTemplatePayload(args),
   });
 

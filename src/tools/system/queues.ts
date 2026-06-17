@@ -173,7 +173,7 @@ export function registerQueueTools(
 
   registerUpdateTool(server, client, QUEUE_SPEC, {
     description:
-      'Update a queue (full-replace by name). Omitted optional fields are reset; use clear_fields to explicitly null them.',
+      'Update a queue (full-replace by name). Any optional field you OMIT keeps its current value (the tool re-sends it from the existing record); use clear_fields to explicitly null an optional field.',
     inputSchema: updateSchema,
     preValidate: (args: UpdateArgs) =>
       validateThrottle(args.throttle_duration, args.throttle_parallelism),

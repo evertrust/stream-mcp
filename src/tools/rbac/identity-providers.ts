@@ -37,12 +37,18 @@ const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
 // Discriminated input: Local vs OpenId. Reserved name "x509" is rejected.
 const localProvider = z.object({
-  type: z.literal('Local'),
-  name: z.string().describe('Immutable provider name (primary key).'),
-  enabled: z.boolean().describe('Whether the provider is enabled.'),
+  type: z.literal('Local').describe('Discriminator: Local identity provider.'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable provider name (primary key).'),
+  enabled: z
+    .boolean()
+    .describe('MANDATORY. Whether the provider is enabled (true/false).'),
   enabled_on_ui: z
     .boolean()
-    .describe('Whether the provider is shown on the UI.'),
+    .describe(
+      'MANDATORY. Whether the provider is shown on the UI (true/false).',
+    ),
   password_policy: z
     .string()
     .optional()
@@ -50,24 +56,35 @@ const localProvider = z.object({
 });
 
 const openIdProvider = z.object({
-  type: z.literal('OpenId'),
-  name: z.string().describe('Immutable provider name (primary key).'),
-  enabled: z.boolean().describe('Whether the provider is enabled.'),
+  type: z.literal('OpenId').describe('Discriminator: OpenId (OIDC) provider.'),
+  name: z
+    .string()
+    .describe('MANDATORY. Immutable provider name (primary key).'),
+  enabled: z
+    .boolean()
+    .describe('MANDATORY. Whether the provider is enabled (true/false).'),
   enabled_on_ui: z
     .boolean()
-    .describe('Whether the provider is shown on the UI.'),
+    .describe(
+      'MANDATORY. Whether the provider is shown on the UI (true/false).',
+    ),
   provider_metadata_url: z
     .string()
-    .describe('OIDC discovery (.well-known/openid-configuration) URL.'),
+    .describe(
+      'MANDATORY. OIDC discovery (.well-known/openid-configuration) URL.',
+    ),
   scope: z
     .string()
-    .describe('Space-separated OIDC scopes, e.g. "openid email profile".'),
+    .describe(
+      'MANDATORY. Space-separated OIDC scopes, e.g. "openid email profile".',
+    ),
   credentials: z
     .string()
     .optional()
     .describe(
-      'Name of an existing password credential with target "openid" ' +
-        '(effectively required - validated server-side).',
+      'OpenId only - name of an existing password credential with target ' +
+        '"openid". Effectively required (server validates it exists and is a ' +
+        'password credential targeting openid); ask the user for it.',
     ),
   proxy: z
     .string()
@@ -147,7 +164,13 @@ export function registerIdentityProviderTools(
       description:
         'Create a dynamic identity provider (type Local or OpenId). OpenId ' +
         'providers manage external OIDC login (NOT used for MCP auth). The ' +
-        'name "x509" is reserved.\nSafety tier: mutating-safe\nIMPORTANT: name ' +
+        'name "x509" is reserved.\n' +
+        'MANDATORY by type (ask the user; do not infer or invent):\n' +
+        '  - Local: type, name, enabled, enabled_on_ui.\n' +
+        '  - OpenId: type, name, enabled, enabled_on_ui, provider_metadata_url, ' +
+        'scope, credentials (effectively required - name of a password ' +
+        'credential targeting openid).\n' +
+        'Safety tier: mutating-safe\nIMPORTANT: name ' +
         'is an immutable primary key - ask the user for it; never invent it.',
       inputSchema: providerInput,
     },
@@ -171,8 +194,15 @@ export function registerIdentityProviderTools(
     'update_identity_provider',
     {
       description:
-        'Update a dynamic identity provider (full-replace via PUT, lookup by ' +
-        'name). Supply the complete provider definition for its type.\n' +
+        'Update a dynamic identity provider (full-replace done as GET -> merge ' +
+        'your changes -> PUT, lookup by name). Supply the COMPLETE provider ' +
+        'definition for its type; any optional field you OMIT keeps its current ' +
+        'value (the tool re-sends it from the existing record).\n' +
+        'MANDATORY (lookup key + the same per-type required fields as create - ' +
+        'ask the user; do not infer):\n' +
+        '  - Local: type, name, enabled, enabled_on_ui.\n' +
+        '  - OpenId: type, name, enabled, enabled_on_ui, provider_metadata_url, ' +
+        'scope, credentials.\n' +
         'Safety tier: mutating-safe\nIMPORTANT: name is an immutable key.',
       inputSchema: providerInput,
     },

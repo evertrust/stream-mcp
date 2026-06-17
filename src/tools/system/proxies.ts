@@ -121,7 +121,7 @@ export function registerProxyTools(
 
   registerUpdateTool(server, client, PROXY_SPEC, {
     description:
-      'Update an HTTP proxy (full-replace by name). Omitted fields are reset to the previous record values via GET-strip-merge-PUT.',
+      'Update an HTTP proxy (full-replace by name). Any field you OMIT keeps its current value (the tool re-sends it from the existing record via GET-strip-merge-PUT).',
     inputSchema: updateSchema,
     preValidate: (args) => validateHost(args.host),
     buildOverrides: (args) => ({

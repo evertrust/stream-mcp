@@ -132,8 +132,11 @@ export function registerNtpTools(
   // --- update ---------------------------------------------------------------
   registerUpdateTool(server, client, NTP_SPEC, {
     description:
-      'Update an NTP client (full-replace, keyed by name). Omitted optional ' +
-      'fields are reset. Requires the TSA module.',
+      'Update an NTP client (full-replace, keyed by name; name is required as ' +
+      'the lookup key). host stays mandatory on the stored record. Pass only the ' +
+      'fields you want to change; any field you omit keeps its current value (the ' +
+      'tool fetches the existing record and merges your changes). To null an ' +
+      'optional field (e.g. maxStratum) use clear_fields. Requires the TSA module.',
     inputSchema: z.object({
       name: z.string().describe('NTP client name to update (lookup key).'),
       host: z
