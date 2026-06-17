@@ -5,7 +5,7 @@
 
 # Dependencies
 node_modules/
-bun.lock
+package-lock.json
 .npmrc
 
 # Local working notes under docs/ subfolders (never committed)
@@ -14,6 +14,8 @@ docs/*/
 # Build output
 dist/
 *.tsbuildinfo
+# Transient bun --compile scratch files (build:binary / build:binaries)
+*.bun-build
 
 # Test / coverage
 coverage/

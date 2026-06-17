@@ -5,7 +5,7 @@
 ```bash
 git clone https://github.com/evertrust/stream-mcp.git
 cd stream-mcp
-npm install
+bun install
 ```
 
 Node.js ≥ 24.10 (or Bun 1.x+). TypeScript, ESM.
@@ -14,15 +14,19 @@ Node.js ≥ 24.10 (or Bun 1.x+). TypeScript, ESM.
 
 | Command | What it does |
 |---------|--------------|
-| `npm run dev` | Run the server from source via `tsx` |
-| `npm run build` | Bundle to `dist/index.js` (tsup; inlines knowledge `.md`) |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` / `npm run lint:fix` | ESLint |
-| `npm run format` / `npm run format:check` | Prettier |
-| `npm run test` | Unit tests (vitest) |
-| `npm run test:e2e` | Live e2e tests against a real instance |
-| `npm run test:scenarios` (`test:llm`) | Free, deterministic LLM-evaluation tier: in-process tool/resource metadata, a keyword tool-ranker, and (when `STREAM_E2E_*` is set) grounded checks that the tools return usable output — no model called |
-| `npm run test:llm:live` | **Paid, opt-in** model-driven smoke: a small Claude model (default Sonnet) drives the MCP and must select the right tool **and** surface usable output |
+| `bun run dev` | Run the server from source via `tsx` |
+| `bun run build` | Bundle to `dist/index.js` (tsup; inlines knowledge `.md`) |
+| `bun run build:binary` | Compile a single native standalone binary (`dist/stream-mcp`) |
+| `bun run build:binaries` | Cross-compile standalone binaries for Linux/macOS/Windows (x64 + arm64) |
+| `bun run typecheck` | `tsc --noEmit` |
+| `bun run lint` / `bun run lint:fix` | ESLint |
+| `bun run format` / `bun run format:check` | Prettier |
+| `bun run validate:ci` | Run the full local gate: format → lint → typecheck → build → test → scenarios |
+| `bun run test` | Unit tests (vitest) |
+| `bun run test:e2e` | Live e2e tests against a real instance |
+| `bun run test:e2e:smoke` | A small live e2e smoke subset (CI gate when `STREAM_E2E_*` is set) |
+| `bun run test:scenarios` (`test:llm`) | Free, deterministic LLM-evaluation tier: in-process tool/resource metadata, a keyword tool-ranker, and (when `STREAM_E2E_*` is set) grounded checks that the tools return usable output — no model called |
+| `bun run test:llm:live` | **Paid, opt-in** model-driven smoke: a small Claude model (default Sonnet) drives the MCP and must select the right tool **and** surface usable output |
 
 ## Project layout
 
@@ -76,7 +80,7 @@ tests/
 3. Add a unit test under `tests/unit/<domain>.test.ts` with a mocked client.
 4. If it's a new domain, wire its `registerXxxTools` into
    `src/tools/registry.ts`.
-5. `npm run typecheck && npm run lint && npm run test && npm run build`.
+5. `bun run validate:ci` (or at minimum `bun run typecheck && bun run lint && bun run test && bun run build`).
 
 ## Testing
 
@@ -140,8 +144,17 @@ selection check.
 
 ## CI
 
-`.github/workflows/ci.yml` runs format-check, lint, typecheck, build, and unit
-tests on push/PR. Releases are handled by `.github/workflows/release.yml`.
+`.github/workflows/ci.yml`:
+
+- **Commitlint** (pull requests): enforces Conventional Commits across the PR.
+- **Validate** (push to `main` + PRs): `format:check` → `lint` → `typecheck` →
+  `build` → `test` → `test:scenarios`. Everything runs on Bun with a frozen
+  lockfile; the paid LLM tier is never run in CI.
+
+`.github/workflows/release.yml` runs after a successful CI run on `main`:
+semantic-release derives the next version from Conventional Commits, updates the
+changelog, publishes to npm (with provenance), and creates a GitHub release with
+the cross-compiled standalone binaries from `build:binaries`.
 
 ## Conventions
 
@@ -149,3 +162,5 @@ tests on push/PR. Releases are handled by `.github/workflows/release.yml`.
 - Object names/identifiers are immutable primary keys — never invent them.
 - Secrets are write-only and redacted from all tool output.
 - Keep files focused (one responsibility); split large domains by sub-resource.
+- Commit messages follow Conventional Commits — enforced locally by commitlint
+  via a husky `commit-msg` hook, and consumed by semantic-release for versioning.
