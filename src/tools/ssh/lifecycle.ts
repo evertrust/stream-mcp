@@ -137,6 +137,14 @@ const REVOKE_INPUT = z.object({
     .optional()
     .describe('Decimal serial of the certificate to revoke (requires ca).'),
   ca: z.string().optional().describe('CA name (requires serial).'),
+  expected_serial: z
+    .string()
+    .optional()
+    .describe(
+      'Safety confirmation for the serial+ca path: must exactly equal `serial`. ' +
+        'Revocation is irreversible, so echo the serial to confirm the target. ' +
+        'Not needed when revoking by `certificate` (it is self-identifying).',
+    ),
 });
 
 function registerRevoke(server: McpServer, client: StreamClient): void {
@@ -163,6 +171,17 @@ function registerRevoke(server: McpServer, client: StreamClient): void {
         payload['certificate'] = args.certificate;
         name = 'certificate (by OpenSSH cert)';
       } else if (hasSerial && hasCa) {
+        // Irreversible action: require an explicit serial echo to confirm the target.
+        if (args.expected_serial !== args.serial) {
+          throw new StreamError(422, {
+            errorCode: 'REVOKE-CONFIRM',
+            message:
+              'Revocation is irreversible. Pass expected_serial equal to serial ' +
+              'to confirm the certificate you are revoking.',
+            remediation:
+              'Set expected_serial to the same value as serial (the exact target serial).',
+          });
+        }
         payload['serial'] = args.serial;
         payload['ca'] = args.ca;
         name = `${args.ca}/${args.serial}`;

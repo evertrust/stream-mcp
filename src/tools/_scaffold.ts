@@ -224,6 +224,8 @@ export function registerCreateTool<S extends z.ZodObject<z.ZodRawShape>>(
     inputSchema: S;
     buildPayload: (args: z.infer<S>) => Record<string, unknown>;
     preValidate?: (args: z.infer<S>) => string | undefined;
+    /** One-time secret fields to return in clear (e.g. a generated password). */
+    revealFields?: readonly string[];
   },
 ): void {
   registerTool(
@@ -252,6 +254,7 @@ export function registerCreateTool<S extends z.ZodObject<z.ZodRawShape>>(
           kind: spec.noun,
           name,
           data: (result ?? undefined) as Record<string, unknown> | undefined,
+          reveal: opts.revealFields,
         }),
       );
     },

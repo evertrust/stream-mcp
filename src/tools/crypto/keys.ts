@@ -31,6 +31,38 @@ const HSMS_ROUTE = '/api/v1/crypto/hsms';
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
+// HSM tools cause Stream to LOAD a native PKCS#11 library on the server — this
+// is side-effecting (not a pure read) and reaches outside Stream, so it is
+// annotated open-world / non-read-only rather than inheriting the get_* default.
+const HSM_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
+/**
+ * Optional allowlist for HSM library paths. When STREAM_HSM_LIBRARY_ALLOWLIST is
+ * set (comma-separated absolute paths), only those libraries may be loaded;
+ * otherwise the caller-supplied path is forwarded (Stream remains the authority).
+ */
+function assertAllowedHsmLibrary(library: string): void {
+  const raw = process.env['STREAM_HSM_LIBRARY_ALLOWLIST'];
+  if (!raw || !raw.trim()) return;
+  const allow = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!allow.includes(library)) {
+    throw new StreamError(422, {
+      errorCode: 'HSM-LIBRARY-NOT-ALLOWED',
+      message: `PKCS#11 library "${library}" is not in STREAM_HSM_LIBRARY_ALLOWLIST.`,
+      remediation:
+        'Use an allowlisted library path, or update STREAM_HSM_LIBRARY_ALLOWLIST on the MCP server.',
+    });
+  }
+}
+
 export function registerKeyTools(
   server: McpServer,
   client: StreamClient,
@@ -263,17 +295,23 @@ export function registerKeyTools(
     'get_hsm_info',
     {
       description:
-        'Load a PKCS#11 library and return its module info (libraryVersion, cryptokiVersion, manufacturerID, libraryDescription).\n' +
-        'Safety tier: read-only',
+        'Load a PKCS#11 library on the Stream server and return its module info ' +
+        '(libraryVersion, cryptokiVersion, manufacturerID, libraryDescription). ' +
+        'NOTE: this is NOT a pure read — it makes Stream load a native library, ' +
+        'so it is side-effecting/open-world. The library path may be restricted ' +
+        'by STREAM_HSM_LIBRARY_ALLOWLIST.\nSafety tier: open-world (loads native code)',
+      annotations: HSM_ANNOTATIONS,
       inputSchema: z.object({
         library: z
           .string()
           .describe(
-            'Filesystem path to the PKCS#11 .so library (e.g. /usr/lib/softhsm/libsofthsm2.so).',
+            'Path/name of the PKCS#11 library to load (e.g. /usr/lib/softhsm/libsofthsm2.so). ' +
+              'May be constrained by STREAM_HSM_LIBRARY_ALLOWLIST.',
           ),
       }),
     },
     async ({ library }) => {
+      assertAllowedHsmLibrary(library);
       const result = await client.get(
         `${HSMS_ROUTE}/${encodePathSegment(library)}`,
       );
@@ -287,15 +325,22 @@ export function registerKeyTools(
     'get_hsm_slots',
     {
       description:
-        'List the slots of a PKCS#11 library (id, isHardwareSlot, manufacturerID, hardwareVersion, firmwareVersion, description).\n' +
-        'Safety tier: read-only',
+        'Load a PKCS#11 library on the Stream server and list its slots (id, ' +
+        'isHardwareSlot, manufacturerID, hardwareVersion, firmwareVersion, ' +
+        'description). NOTE: not a pure read — Stream loads a native library ' +
+        '(side-effecting/open-world). The path may be restricted by ' +
+        'STREAM_HSM_LIBRARY_ALLOWLIST.\nSafety tier: open-world (loads native code)',
+      annotations: HSM_ANNOTATIONS,
       inputSchema: z.object({
         library: z
           .string()
-          .describe('Filesystem path to the PKCS#11 .so library.'),
+          .describe(
+            'Path/name of the PKCS#11 library. May be constrained by STREAM_HSM_LIBRARY_ALLOWLIST.',
+          ),
       }),
     },
     async ({ library }) => {
+      assertAllowedHsmLibrary(library);
       const items = await client.getList<Record<string, unknown>>(
         `${HSMS_ROUTE}/${encodePathSegment(library)}/slots`,
       );

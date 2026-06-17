@@ -14,6 +14,7 @@
 import { z } from 'zod';
 
 import { StreamError } from '../../client/errors.js';
+import { assertSafeOutboundUrl } from '../url-safety.js';
 import {
   NOTIFICATION_TYPES,
   REST_AUTH_TYPES,
@@ -117,7 +118,9 @@ export const triggerInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'REST only (required for type=rest). Endpoint URL (TemplateString).',
+      'REST only (required for type=rest). Endpoint URL (TemplateString). ' +
+        'Must be http(s); loopback/link-local/private targets are blocked to ' +
+        'prevent SSRF (set STREAM_ALLOW_INTERNAL_URLS=true to allow internal ones).',
     ),
   payload: z
     .string()
@@ -294,6 +297,9 @@ export function validateTrigger(args: TriggerInput): void {
       message: 'expected_http_codes must contain at least one HTTP code.',
     });
   }
+  // SSRF guard: Stream performs this outbound request (and returns its body on
+  // test_trigger). Block loopback/link-local/private targets unless opted in.
+  assertSafeOutboundUrl(args.url!, 'url');
   if (args.authentication_type === 'noauth') {
     if (args.credentials !== undefined) {
       throw new StreamError(422, {

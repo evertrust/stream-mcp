@@ -111,14 +111,30 @@ export function buildMutateResponse(opts: {
   name: string;
   data?: Record<string, unknown>;
   warnings?: string[];
+  /**
+   * Top-level fields to INTENTIONALLY return in clear despite matching the
+   * sensitive-field set. Use ONLY for one-time secrets the caller must capture
+   * (e.g. a server-generated local-identity `password`). Server stderr logs
+   * never include tool-result bodies, so these stay out of logs.
+   */
+  reveal?: readonly string[];
 }): string {
   const response: Record<string, unknown> = {
     status: opts.action,
     kind: opts.kind,
     name: opts.name,
   };
-  // Redact any secret material a create/update response might echo back.
-  if (opts.data !== undefined) response['data'] = redactSensitive(opts.data);
+  // Redact any secret material a create/update response might echo back, then
+  // re-surface the explicitly-revealed one-time fields.
+  if (opts.data !== undefined) {
+    const redacted = redactSensitive(opts.data) as Record<string, unknown>;
+    if (opts.reveal) {
+      for (const field of opts.reveal) {
+        if (opts.data[field] !== undefined) redacted[field] = opts.data[field];
+      }
+    }
+    response['data'] = redacted;
+  }
   if (opts.warnings && opts.warnings.length > 0) {
     response['warnings'] = opts.warnings;
   }

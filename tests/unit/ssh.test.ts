@@ -533,15 +533,26 @@ describe('revoke_ssh_certificate', () => {
     });
   });
 
-  it('Variant B: serial + ca', async () => {
+  it('Variant B: serial + ca (with expected_serial confirmation)', async () => {
     const { client, byName } = setup();
     client.post.mockResolvedValue({ revoked: true });
     await byName('revoke_ssh_certificate').h({
       serial: '12345',
       ca: 'sma-rsa',
+      expected_serial: '12345',
     });
     const body = client.post.mock.calls[0]![1] as Record<string, unknown>;
     expect(body).toEqual({ serial: '12345', ca: 'sma-rsa' });
+  });
+
+  it('blocks serial+ca revoke without matching expected_serial', async () => {
+    const { client, byName } = setup();
+    const missing = await byName('revoke_ssh_certificate').h({
+      serial: '12345',
+      ca: 'sma-rsa',
+    });
+    expect(missing.isError).toBe(true);
+    expect(client.post).not.toHaveBeenCalled();
   });
 
   it('rejects when neither certificate nor serial+ca is provided', async () => {

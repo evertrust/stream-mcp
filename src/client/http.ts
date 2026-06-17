@@ -41,6 +41,24 @@ function getCauseCode(err: unknown): string | undefined {
   return undefined;
 }
 
+function oversizedError(path: string, bytes: number): StreamError {
+  return new StreamError(0, {
+    message: `Response from ${path} exceeds ${MAX_RESPONSE_BYTES} bytes (${bytes})`,
+    remediation:
+      'Use a paginated endpoint or narrow the request to reduce payload size.',
+  });
+}
+
+/** Reject before reading the body if Content-Length already exceeds the cap. */
+function assertDeclaredSizeWithinCap(resp: Response, path: string): void {
+  const contentLength = resp.headers.get('content-length');
+  if (!contentLength) return;
+  const declared = Number.parseInt(contentLength, 10);
+  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+    throw oversizedError(path, declared);
+  }
+}
+
 /** Bound JSON.parse to MAX_RESPONSE_BYTES. */
 async function readJsonBounded<T>(resp: Response, path: string): Promise<T> {
   const contentLength = resp.headers.get('content-length');
@@ -223,13 +241,23 @@ export class StreamClient {
 
   async getBytes(path: string): Promise<ArrayBuffer> {
     const resp = await this._request('GET', path, {});
-    return resp.arrayBuffer();
+    assertDeclaredSizeWithinCap(resp, path);
+    const buf = await resp.arrayBuffer();
+    if (buf.byteLength > MAX_RESPONSE_BYTES) {
+      throw oversizedError(path, buf.byteLength);
+    }
+    return buf;
   }
 
   /** GET returning the raw body text (e.g. CSR PEM, AsciiDoc export). */
   async getText(path: string, accept = 'application/json'): Promise<string> {
     const resp = await this._request('GET', path, { accept });
-    return resp.text();
+    assertDeclaredSizeWithinCap(resp, path);
+    const txt = await resp.text();
+    if (txt.length > MAX_RESPONSE_BYTES) {
+      throw oversizedError(path, txt.length);
+    }
+    return txt;
   }
 
   async postText(path: string, body?: unknown): Promise<string> {

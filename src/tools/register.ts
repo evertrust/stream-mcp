@@ -86,10 +86,10 @@ function classify(name: string): Classification {
   const title = titleFromName(name);
 
   const isReadOnly =
-    READ_ONLY_RE.test(name) ||
-    name === 'whoami' ||
-    name.endsWith('_csr') || // generate_*_csr: derives a CSR, no state change
-    name === 'run_event_integrity_check';
+    READ_ONLY_RE.test(name) || name === 'whoami' || name.endsWith('_csr'); // generate_*_csr: derives a CSR, no state change
+  // NB: run_event_integrity_check is intentionally NOT read-only — it kicks off
+  // a background verification and persists an append-only integrity report, so
+  // it falls through to the additive (non-idempotent, open-world) branch.
 
   if (isReadOnly) {
     return {

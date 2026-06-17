@@ -72,6 +72,9 @@ export function registerLocalIdentityTools(
       if (args.expires !== undefined) body['expires'] = args.expires;
       return body;
     },
+    // The server-generated one-time password is the point of create — return it
+    // in clear (it is otherwise redacted) so the caller can capture it once.
+    revealFields: ['password'],
   });
 
   registerUpdateTool(server, client, SPEC, {
@@ -138,6 +141,9 @@ export function registerLocalIdentityTools(
           kind: SPEC.noun,
           name: id,
           data: (result ?? undefined) as Record<string, unknown> | undefined,
+          // Return the one-time generated password in clear (it is the purpose
+          // of this call); it is otherwise stripped by secret redaction.
+          reveal: ['password'],
         }),
       );
     },
