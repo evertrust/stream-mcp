@@ -95,7 +95,7 @@ The server auto-detects the authentication mode based on which variables are set
 | `STREAM_EXPORT_TIMEOUT`        | No                  | `120`                | Timeout in seconds for long-running endpoints such as the AsciiDoc config export.         |
 | `STREAM_LOG_LEVEL`             | No                  | `INFO`               | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`.                                               |
 | `STREAM_TESTED_VERSIONS`       | No                  | `2.1`                | Comma-separated list of Stream versions known to fully work with this build.             |
-| `STREAM_WARN_VERSIONS`         | No                  | `2.0,2.2`            | Comma-separated list of versions that are likely to work but emit a warning.             |
+| `STREAM_WARN_VERSIONS`         | No                  | _(empty)_            | Comma-separated list of versions that are likely to work but emit a warning instead of an "untested" caution. |
 
 ### Security hardening (optional)
 
@@ -284,11 +284,10 @@ Create a local account for a new operator and return its one-time password.
 
 ## Compatibility
 
-| Stream version | Status                                  |
-| -------------- | --------------------------------------- |
-| 2.1            | Tested (full feature set)               |
-| 2.0            | Expected to work (in `STREAM_WARN_VERSIONS`) |
-| 2.2            | Expected to work (in `STREAM_WARN_VERSIONS`) |
+| Stream version | Status                                                        |
+| -------------- | ------------------------------------------------------------- |
+| 2.1            | Tested (full feature set)                                     |
+| Other          | Untested — the server logs a caution at startup and proceeds. Add a version to `STREAM_WARN_VERSIONS` to downgrade that caution. |
 
 ## What is not supported
 
