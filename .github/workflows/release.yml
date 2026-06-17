@@ -3,7 +3,7 @@ name: Release
 on:
   workflow_run:
     workflows: ['CI checks']
-    branches: [master]
+    branches: [main]
     types: [completed]
 
 concurrency:
