@@ -63,16 +63,17 @@ const ALL_TOOLS = [
   'list_requestable_ssh_templates',
   'list_krls',
   'get_krl',
+  'get_published_krl',
 ];
 
 describe('ssh registration', () => {
-  it('registers all 19 required tools', () => {
+  it('registers all 20 required tools', () => {
     const { calls } = setup();
     const names = calls.map((c) => c.n).sort();
     for (const t of ALL_TOOLS) {
       expect(names, `missing ${t}`).toContain(t);
     }
-    // No stray tools beyond the 19.
+    // No stray tools beyond the listed set.
     expect(calls).toHaveLength(ALL_TOOLS.length);
   });
 });
@@ -257,6 +258,7 @@ describe('generate_krl', () => {
     expect(client.get).toHaveBeenCalledWith(
       '/api/v1/ssh/cas/sma-rsa/krl',
       undefined,
+      { noRetry: true },
     );
   });
 

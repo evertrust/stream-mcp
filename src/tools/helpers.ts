@@ -5,8 +5,6 @@
 import { z } from 'zod';
 
 import { StreamError, redactSensitive } from '../client/errors.js';
-import type { StreamClient } from '../client/http.js';
-import { toUpdatePayload } from '../models/payloads.js';
 
 // ---------------------------------------------------------------------------
 // Shared MCP outputSchema shapes
@@ -95,7 +93,12 @@ export function buildListResponse(
   kind: string,
 ): string {
   const total = items.length;
-  const sliced = items.slice(0, maxItems);
+  // Redact secret-bearing fields on read symmetrically with the write path
+  // (buildMutateResponse). redactSensitive only touches the known secret-field
+  // set; reference names (keystore, credentials, ...) stay visible.
+  const sliced = items
+    .slice(0, maxItems)
+    .map((item) => redactSensitive(item) as Record<string, unknown>);
   return JSON.stringify({
     items: sliced,
     count: sliced.length,
@@ -103,6 +106,15 @@ export function buildListResponse(
     truncated: total > maxItems,
     kind,
   });
+}
+
+/**
+ * JSON-encode a single read result with the same secret redaction the write
+ * path applies. Use for get_* tools that return a backed object verbatim, so a
+ * secret-bearing field can never reach the model unredacted.
+ */
+export function redactedJson(value: unknown): string {
+  return JSON.stringify(redactSensitive(value));
 }
 
 export function buildMutateResponse(opts: {
@@ -139,26 +151,6 @@ export function buildMutateResponse(opts: {
     response['warnings'] = opts.warnings;
   }
   return JSON.stringify(response);
-}
-
-// ---------------------------------------------------------------------------
-// GET-strip-merge-PUT cycle (generic; uses a baseline strip set)
-// ---------------------------------------------------------------------------
-
-export async function getStripMergePut(
-  client: StreamClient,
-  getPath: string,
-  putPath: string,
-  overrides: Record<string, unknown>,
-  opts: { stripFields?: Iterable<string>; clearFields?: string[] } = {},
-): Promise<Record<string, unknown>> {
-  const current = await client.get<Record<string, unknown>>(getPath);
-  const payload = toUpdatePayload(current, {
-    overrides,
-    clearFields: opts.clearFields,
-    stripFields: opts.stripFields,
-  });
-  return client.put<Record<string, unknown>>(putPath, payload);
 }
 
 // ---------------------------------------------------------------------------

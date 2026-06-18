@@ -66,7 +66,19 @@ export function registerX509TemplateTools(
       'Create an X509 certificate template (profile). Body is the full template. ' +
       'Note: a template has NO ca / keyType / signatureHashAlgorithm; validity is ' +
       '`lifetime` (FiniteDuration like "365d"). `ku` (Key Usage) is required and ' +
-      'must define at least one value. Fails if the name already exists.',
+      'must define at least one value. Fails if the name already exists.\n' +
+      'KEEP TEMPLATES GENERAL — INHERIT FROM THE CA: a template has no `ca`, so ' +
+      'one template is reused across CAs. PREFER crldps_from_ca=true and ' +
+      'aia_from_ca=true (and usually policy_from_ca=true) so each issued cert ' +
+      'inherits the CRL Distribution Point and AIA (including the OCSP responder ' +
+      'URL) from whichever CA issues it. Configure those once on the CA (its ' +
+      'crldps, aia.ocsp, ocspSigner via create_ca/update_ca), then create ONE ' +
+      'broad template that serves every CA. Do NOT create a template per CA, and ' +
+      'do NOT restate CRL/AIA/OCSP URLs across multiple templates — there is no ' +
+      'separate "OCSP signer template". Set a *_from_ca flag to false with an ' +
+      'explicit crldps/aia only to deliberately OVERRIDE that CA value. Create a ' +
+      'new template only for a genuine policy difference (key usage, EKU, ' +
+      'lifetime, subject/SAN constraints). See stream://knowledge/templates.',
     mandatoryFields: [
       'name',
       'lifetime',

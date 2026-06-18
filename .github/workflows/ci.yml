@@ -63,6 +63,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Dependency audit (advisory)
+        # Surfaces known-vulnerable dependencies. Advisory for now (does not fail
+        # the build); promote to a hard gate once the tree is clean.
+        run: bun audit --audit-level=high || true
+
       - name: Format check
         run: bun run format:check
 
@@ -78,8 +83,8 @@ jobs:
       - name: Verify API truth
         run: bun run verify:truth
 
-      - name: Test
-        run: bun run test
+      - name: Test (with coverage gate)
+        run: bun run test:coverage
 
       - name: Scenario suite
         run: bun run test:scenarios

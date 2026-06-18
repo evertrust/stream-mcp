@@ -11,11 +11,6 @@ export abstract class AuthProvider {
   /** Refresh credentials if expired. No-op for static auth. */
   abstract refreshIfNeeded(): Promise<void>;
 
-  /** Signal that authentication was rejected by the server. */
-  async markAuthFailed(): Promise<void> {
-    // No-op default - static credentials cannot be refreshed.
-  }
-
   /** Release resources (e.g., temp files). Called during server shutdown. */
   async cleanup(): Promise<void> {
     // No-op default

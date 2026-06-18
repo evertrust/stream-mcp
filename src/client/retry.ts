@@ -11,6 +11,29 @@ export interface RetryOptions {
 }
 
 /**
+ * Release the socket back to the undici pool for a response we are about to
+ * discard. undici requires every response body to be fully consumed or
+ * cancelled; otherwise the connection leaks. Cancelling the stream avoids
+ * buffering a (potentially large) error page.
+ */
+async function drainBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    /* already consumed / no body - nothing to release */
+  }
+}
+
+/**
+ * Apply "equal jitter" (50-100% of the computed delay) so concurrent clients
+ * retrying the same overloaded backend do not synchronize into a thundering
+ * herd. Server-provided Retry-After values are honored verbatim (no jitter).
+ */
+function jitter(delayMs: number): number {
+  return Math.round(delayMs * (0.5 + Math.random() * 0.5));
+}
+
+/**
  * Retry a fetch thunk with exponential backoff.
  * Only retries on retryable status codes and connection errors.
  * Respects Retry-After header on 429 responses.
@@ -34,13 +57,12 @@ export async function withRetry(
         return response;
       }
 
-      // Retryable status - compute delay
-      let delayMs = Math.min(
-        baseDelayMs * Math.pow(2, attempt - 1),
-        maxDelayMs,
+      // Retryable status - compute jittered exponential backoff.
+      let delayMs = jitter(
+        Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs),
       );
 
-      // Respect Retry-After header on 429
+      // Respect Retry-After header on 429 (verbatim, clamped, no jitter).
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
         if (retryAfter) {
@@ -65,14 +87,15 @@ export async function withRetry(
       logger.info(
         `Retryable status ${response.status} (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms`,
       );
+      // Release the connection for this discarded response before backing off.
+      await drainBody(response);
       await sleep(delayMs);
     } catch (err) {
       lastError = err;
       if (attempt === maxAttempts) break;
 
-      const delayMs = Math.min(
-        baseDelayMs * Math.pow(2, attempt - 1),
-        maxDelayMs,
+      const delayMs = jitter(
+        Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs),
       );
       logger.info(
         `Connection error (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms: ${err}`,

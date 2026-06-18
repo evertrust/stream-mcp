@@ -4,22 +4,18 @@
   "description": "MCP server for Evertrust Stream 2.1 (PKI: CA, VA/OCSP, TSA, SSH)",
   "license": "Apache-2.0",
   "type": "module",
-  "bin": {
-    "stream-mcp": "dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "engines": {
-    "node": ">=24.10"
-  },
+  "bin": { "stream-mcp": "dist/index.js" },
+  "files": ["dist"],
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
+  "engines": { "node": ">=22.19" },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup",
+    "prepublishOnly": "bun run build",
     "build:binary": "bun run build && bun build --compile dist/index.js --outfile dist/stream-mcp",
     "build:binaries": "bun run build && bun build --compile dist/index.js --outfile dist/stream-mcp-linux-x64 --target=bun-linux-x64 && bun build --compile dist/index.js --outfile dist/stream-mcp-linux-arm64 --target=bun-linux-arm64 && bun build --compile dist/index.js --outfile dist/stream-mcp-darwin-x64 --target=bun-darwin-x64 && bun build --compile dist/index.js --outfile dist/stream-mcp-darwin-arm64 --target=bun-darwin-arm64 && bun build --compile dist/index.js --outfile dist/stream-mcp-windows-x64.exe --target=bun-windows-x64",
     "typecheck": "tsc --noEmit",
@@ -31,6 +27,7 @@
     "validate:ci": "bun run format:check && bun run lint && bun run typecheck && bun run build && bun run verify:truth && bun run test && bun run test:scenarios",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.config.e2e.ts --reporter=verbose",
     "test:e2e:smoke": "vitest run --config vitest.config.e2e.ts tests/e2e/foundation.test.ts --reporter=verbose",
     "test:scenarios": "vitest run --config vitest.config.llm.ts --reporter=verbose",
@@ -64,6 +61,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.2"
   }
 }

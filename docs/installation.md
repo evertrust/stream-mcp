@@ -1,11 +1,11 @@
 # Installation
 
-The Stream MCP server is a stdio MCP server. It runs anywhere Node.js ≥ 24.10
+The Stream MCP server is a stdio MCP server. It runs anywhere Node.js ≥ 22.19
 (or Bun) is available.
 
 ## Prerequisites
 
-- **Node.js ≥ 24.10** (or **Bun 1.x+**).
+- **Node.js ≥ 22.19** (or **Bun 1.x+**).
 - Network access to a Stream 2.1 instance and valid credentials (see
   [authentication.md](authentication.md)).
 

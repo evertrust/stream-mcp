@@ -18,12 +18,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { redactSensitive, redactValue } from '../../client/errors.js';
 import type { StreamClient } from '../../client/http.js';
 import {
   buildListResponse,
   buildMutateResponse,
   deleteGuard,
   encodePathSegment,
+  redactedJson,
 } from '../helpers.js';
 import { registerTool } from '../register.js';
 import { TRIGGER_TYPES } from './enums.js';
@@ -38,6 +40,38 @@ const KNOWLEDGE_REF = 'docs/audit/triggers.md';
 const MAX_LIST_ITEMS = 50;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
+
+// Request/response header names whose value is a credential. test_trigger's
+// REST response echoes back the headers Stream SENT (incl. the Authorization
+// header it built from the referenced credential), so redact those values.
+const SENSITIVE_HEADER_RE =
+  /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-api-secret)$/i;
+
+/**
+ * Scrub a test_trigger result before returning it to the model: redact named
+ * secret fields, scrub reflected request/response bodies, and blank the values
+ * of credential-bearing headers. Returns a fresh object (redactSensitive copies).
+ */
+function scrubTestResult(result: unknown): Record<string, unknown> {
+  const r = redactSensitive(result) as Record<string, unknown>;
+  for (const key of ['requestPayload', 'responsePayload']) {
+    if (typeof r[key] === 'string') r[key] = redactValue(r[key] as string);
+  }
+  for (const key of ['requestHeaders', 'responseHeaders']) {
+    const hdrs = r[key];
+    if (!Array.isArray(hdrs)) continue;
+    r[key] = hdrs.map((h) => {
+      if (h && typeof h === 'object' && !Array.isArray(h)) {
+        const name = (h as Record<string, unknown>)['name'];
+        if (typeof name === 'string' && SENSITIVE_HEADER_RE.test(name)) {
+          return { ...(h as Record<string, unknown>), value: '<redacted>' };
+        }
+      }
+      return h;
+    });
+  }
+  return r;
+}
 
 export function registerTriggerTools(
   server: McpServer,
@@ -122,7 +156,7 @@ function registerGetTrigger(server: McpServer, client: StreamClient): void {
     },
     async ({ name }) => {
       const result = await client.get(`${ROUTE}/${encodePathSegment(name)}`);
-      return text(JSON.stringify(result));
+      return text(redactedJson(result));
     },
   );
 }
@@ -255,8 +289,11 @@ function registerTestTrigger(server: McpServer, client: StreamClient): void {
       description:
         'Dry-run a trigger without persisting it. EMAIL test only renders the ' +
         'template (never sends mail). REST test performs a REAL outbound HTTP ' +
-        'call to url. Optional dictionary supplies {{var}} template bindings. ' +
-        'EXTERNAL_RL_STORAGE is not supported.\nSafety tier: mutating-safe' +
+        'call to url and returns the remote response (status, headers, body); ' +
+        'credential-bearing headers and reflected request/response bodies are ' +
+        'redacted before they reach you. Optional dictionary supplies {{var}} ' +
+        'template bindings. EXTERNAL_RL_STORAGE is not supported.\n' +
+        'Safety tier: mutating-safe' +
         `\n\nRef: ${KNOWLEDGE_REF}.`,
       inputSchema: z.object({
         trigger: triggerInputSchema.describe(
@@ -283,7 +320,7 @@ function registerTestTrigger(server: McpServer, client: StreamClient): void {
       };
       if (dictionary !== undefined) body['dictionary'] = dictionary;
       const result = await client.patch<Record<string, unknown>>(ROUTE, body);
-      return text(JSON.stringify(result));
+      return text(JSON.stringify(scrubTestResult(result)));
     },
   );
 }

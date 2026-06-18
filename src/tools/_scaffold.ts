@@ -13,10 +13,11 @@
  *
  * Two object shapes are supported:
  *   - FLAT / fully-typed: every field is a typed Zod param (preferred).
- *   - COMPLEX / polymorphic: a `describe_<noun>_schema` tool surfaces the audited
- *     structure, and create/update take typed mandatory params + a validated
- *     `config` body (assertConfigBody) so the model never guesses (used for
- *     polymorphic objects like CAs, keystores, triggers).
+ *   - COMPLEX / polymorphic: a `describe_<noun>_schema` tool (registerDescribe-
+ *     SchemaTool) surfaces the audited structure (subtypes, mandatory fields,
+ *     JSON Schema) so the model never guesses the body. The X509 CA is the
+ *     canonical user (describe_ca_schema); its create/update validate the body
+ *     with a domain-specific validator rather than a generic helper.
  *
  * Contracts are grounded in docs/audit/<domain>.md.
  */
@@ -30,6 +31,7 @@ import {
   buildMutateResponse,
   deleteGuard,
   encodePathSegment,
+  redactedJson,
 } from './helpers.js';
 import { registerTool } from './register.js';
 
@@ -204,7 +206,7 @@ export function registerReadTools(
       async (args: Record<string, unknown>) => {
         const id = String(args[idField]);
         const result = await client.get(itemPath(spec, id));
-        return text(JSON.stringify(result));
+        return text(redactedJson(result));
       },
     );
   }
@@ -426,51 +428,4 @@ export function registerDescribeSchemaTool(
         }),
       ),
   );
-}
-
-/**
- * Lightweight client-side guard for complex bodies. Confirms required keys are
- * present, top-level keys are known, and enum values are valid. Deep validation
- * is delegated to Stream (which returns precise errors the tool surfaces).
- */
-export function assertConfigBody(
-  body: Record<string, unknown>,
-  rules: {
-    requiredKeys: readonly string[];
-    knownKeys: readonly string[];
-    enums?: Record<string, readonly string[]>;
-  },
-): void {
-  const missing = rules.requiredKeys.filter(
-    (k) => body[k] === undefined || body[k] === null,
-  );
-  if (missing.length > 0) {
-    throw new StreamError(422, {
-      errorCode: 'CONFIG-MISSING-MANDATORY',
-      message: `Missing mandatory field(s): ${missing.join(', ')}.`,
-      remediation:
-        'Ask the user for these values - do not infer them. Call the describe ' +
-        'tool to see the full required structure.',
-    });
-  }
-  const known = new Set(rules.knownKeys);
-  const unknown = Object.keys(body).filter((k) => !known.has(k));
-  if (unknown.length > 0) {
-    throw new StreamError(422, {
-      errorCode: 'CONFIG-UNKNOWN-FIELD',
-      message: `Unknown top-level field(s): ${unknown.join(', ')}.`,
-      remediation:
-        'Remove these fields. Call the describe tool to see the allowed fields.',
-    });
-  }
-  for (const [field, values] of Object.entries(rules.enums ?? {})) {
-    const v = body[field];
-    if (v === undefined) continue;
-    if (typeof v !== 'string' || !values.includes(v)) {
-      throw new StreamError(422, {
-        errorCode: 'CONFIG-BAD-ENUM',
-        message: `Invalid ${field}=${JSON.stringify(v)}. Allowed: ${values.join(', ')}.`,
-      });
-    }
-  }
 }

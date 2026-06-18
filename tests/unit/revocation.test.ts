@@ -47,7 +47,7 @@ function parseText(result: any): any {
 }
 
 describe('revocation domain registration', () => {
-  it('registers exactly the 10 expected tools', () => {
+  it('registers exactly the 12 expected tools', () => {
     const { calls } = setup();
     const names = calls.map((c) => c.n).sort();
     expect(names).toEqual(
@@ -57,6 +57,8 @@ describe('revocation domain registration', () => {
         'delete_ocsp_signer',
         'generate_ocsp_signer_csr',
         'get_crl',
+        'get_published_crl',
+        'get_published_aia',
         'get_ocsp_signer',
         'list_crls',
         'list_ocsp_signers',

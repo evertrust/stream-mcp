@@ -410,5 +410,43 @@ describe('registerTriggerTools', () => {
       const [, body] = client.patch.mock.calls[0];
       expect(body).not.toHaveProperty('dictionary');
     });
+
+    it('scrubs reflected credentials from the REST test response', async () => {
+      const { client, byName } = setup();
+      client.patch.mockResolvedValue({
+        type: 'rest',
+        status: 'success',
+        responseCode: 200,
+        requestHeaders: [
+          { name: 'Authorization', value: 'Bearer super-secret-token' },
+          { name: 'Accept', value: 'application/json' },
+        ],
+        responsePayload:
+          'echo eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.signaturepart-of-a-jwt',
+      });
+      const res = await byName('test_trigger').handler({
+        trigger: {
+          type: 'rest',
+          name: 'r',
+          event: 'on_crl_gen',
+          authentication_type: 'bearer',
+          method: 'POST',
+          url: 'https://hook.example.com',
+          expected_http_codes: [200],
+          credentials: 'cred-ref',
+        },
+      });
+      const out = parseText(res);
+      const auth = out.requestHeaders.find(
+        (h: any) => h.name === 'Authorization',
+      );
+      expect(auth.value).toBe('<redacted>');
+      // Non-sensitive header is preserved.
+      expect(
+        out.requestHeaders.find((h: any) => h.name === 'Accept').value,
+      ).toBe('application/json');
+      // Reflected JWT in the body is scrubbed.
+      expect(out.responsePayload).toContain('<redacted-jwt>');
+    });
   });
 });

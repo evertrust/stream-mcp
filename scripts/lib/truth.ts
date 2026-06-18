@@ -42,6 +42,15 @@ export const ALLOWED_UNVERIFIED_PATHS = new Set<string>([
   '/api/v1/crypto/hsms',
 ]);
 
+// /api/v1 routes deliberately NOT exposed as tools (used by the advisory
+// reverse-coverage report so genuine gaps stand out from intentional omissions).
+export const INTENTIONALLY_UNWRAPPED_PATHS = new Set<string>([
+  // Session login/logout: programmatic clients authenticate per-request via
+  // headers / mTLS, so there is no interactive login step to wrap.
+  '/api/v1/security/principals/authenticate',
+  '/api/v1/security/principals/logout',
+]);
+
 export interface NormalizedOperation {
   method: string;
   path: string;
@@ -642,6 +651,73 @@ export function verifyMcpRouteTruth(params: {
     verifiedCount,
     allowlistedCount,
     referencedCount: params.references.length,
+  };
+}
+
+/**
+ * Reverse-direction coverage: which Stream /api/v1 routes does the MCP NOT
+ * reference? verifyMcpRouteTruth only checks the forward direction (referenced
+ * paths exist), so it cannot see a capability the MCP never wrapped. This report
+ * is advisory (it does not fail the build) - it surfaces drift so new backend
+ * endpoints become a reviewable list instead of silent gaps.
+ */
+export interface ApiCoverage {
+  total: number;
+  covered: number;
+  uncovered: Array<{ method: string; path: string }>;
+}
+
+export function computeApiCoverage(params: {
+  streamOperations: readonly NormalizedOperation[];
+  references: readonly McpPathReference[];
+}): ApiCoverage {
+  const referenced = new Set(
+    params.references.map((r) => canonicalRoutePath(r.path)),
+  );
+  const intentional = new Set(
+    [...INTENTIONALLY_UNWRAPPED_PATHS].map((p) => canonicalRoutePath(p)),
+  );
+  // A route whose collection prefix IS referenced is almost certainly wrapped
+  // via a path helper (e.g. caPath(name, '/crl')) that the static collector
+  // cannot reconstruct - treat the prefix as evidence of coverage to avoid
+  // false positives. Genuine gaps have no referenced prefix at all.
+  const referencedPrefixes = new Set<string>();
+  for (const c of referenced) {
+    const segs = c.split('/');
+    for (let i = 2; i < segs.length; i++) {
+      referencedPrefixes.add(segs.slice(0, i).join('/'));
+    }
+  }
+  const apiOps = params.streamOperations.filter((op) =>
+    op.path.startsWith('/api/v1'),
+  );
+  const canonicalPaths = new Set(
+    apiOps.map((op) => canonicalRoutePath(op.path)),
+  );
+  const uncovered: Array<{ method: string; path: string }> = [];
+  const seen = new Set<string>();
+  for (const op of apiOps) {
+    const canonical = canonicalRoutePath(op.path);
+    if (referenced.has(canonical)) continue;
+    if (intentional.has(canonical)) continue;
+    // Skip routes reached through a referenced prefix (helper-built paths).
+    const parent = canonical.split('/').slice(0, -1).join('/');
+    if (referencedPrefixes.has(parent) || referenced.has(parent)) continue;
+    const key = `${op.method} ${canonical}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uncovered.push({ method: op.method, path: op.path });
+  }
+  const uncoveredPaths = new Set(
+    uncovered.map((u) => canonicalRoutePath(u.path)),
+  );
+  return {
+    total: canonicalPaths.size,
+    covered: canonicalPaths.size - uncoveredPaths.size,
+    uncovered: uncovered.sort(
+      (a, b) =>
+        a.path.localeCompare(b.path) || a.method.localeCompare(b.method),
+    ),
   };
 }
 

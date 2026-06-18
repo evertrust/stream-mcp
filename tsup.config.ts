@@ -3,8 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm'],
-  // Matches package.json engines.node (>=24.10).
-  target: 'node24',
+  // Matches package.json engines.node (>=22.19, the real undici floor).
+  target: 'node22',
   outDir: 'dist',
   clean: true,
   sourcemap: true,

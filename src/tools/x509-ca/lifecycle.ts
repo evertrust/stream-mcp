@@ -230,7 +230,9 @@ export function registerCaLifecycleTools(
     },
     async ({ name, lazy }) => {
       const params = lazy ? new URLSearchParams({ lazy: 'true' }) : undefined;
-      await client.get(caPath(name, '/crl'), params);
+      // This GET triggers async CRL generation server-side; do not auto-retry
+      // it (a transient 5xx retry would re-fire generation).
+      await client.get(caPath(name, '/crl'), params, { noRetry: true });
       return text(
         buildMutateResponse({
           action: 'crl-generation-requested',

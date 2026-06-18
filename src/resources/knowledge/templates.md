@@ -41,6 +41,43 @@ Mandatory on create: `name`, `lifetime`, `enabled`, and the four `*FromCA`
 inheritance booleans (`crldpsFromCA`, `aiaFromCA`, `policyFromCA`,
 `qcStatementFromCA`). At least one Key Usage value must be defined.
 
+### Inherit from the CA — keep templates general (DEFAULT; do this)
+
+A template has **no `ca` field**: the same template is reused across CAs. Lean
+into that. The four `*FromCA` booleans make the issued certificate pull these
+extensions from **whichever CA issues it**, at enrollment time, instead of
+hardcoding them on the template:
+
+| `*FromCA = true`    | the issued cert's … is taken from …                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `crldpsFromCA`      | CRL Distribution Points ← the CA's `crldps`                                                                             |
+| `aiaFromCA`         | Authority Information Access — **CA-issuers URL _and_ the OCSP responder URL** ← the CA's `aia` (`{certificate, ocsp}`) |
+| `policyFromCA`      | Certificate Policies ← the CA's `policy`                                                                                |
+| `qcStatementFromCA` | eIDAS QC statement ← the CA's `qcStatement`                                                                             |
+
+**Prefer `*FromCA: true` and configure the CRL DP / AIA / OCSP responder once on
+the CA** (`create_ca` / `update_ca`: `crldps`, `aia.ocsp`, `ocspSigner`). Then a
+single broad template serves every CA — you never hardcode per-CA URLs and you
+do not create a template per CA. This is the intended PKI wiring: revocation and
+issuer-info pointers live on the CA; templates only describe issuance _policy_.
+
+So when building a trust chain or an OCSP/CRL setup, the answer is **one general
+template with `crldpsFromCA: true` and `aiaFromCA: true`**, not several templates
+that each restate the CRL DP / AIA / OCSP URLs. The OCSP responder URL is part of
+AIA — `aiaFromCA: true` inherits it automatically; there is no separate "OCSP
+template".
+
+Only set `*FromCA: false` together with an explicit `crldps` / `aia` (or
+`policy` / `qcStatement`) when you deliberately need to **override** the CA's
+value for a specific issuance policy. (At enrollment a request may also override
+these per-cert, but only if the CA's `overridePermissions` allow it.)
+
+**Minimalism rule for ALL templates (X509 + SSH):** make each template as general
+as possible and inherit/derive as much as you can from the CA, so you manage the
+fewest templates. Create a new template only for a genuine _policy_ difference
+(key usage, EKU, lifetime, subject/SAN constraints) — never just to vary the CRL
+DP, AIA, or OCSP wiring, which belongs on the CA.
+
 Key fields (wire names):
 
 | Field                    | Type                       | Notes                                                                                                       |
@@ -124,19 +161,24 @@ must NOT carry a `value`.
 `eTSIQCType` ∈ `WEB`, `ESIGN`, `ESEAL`, `NONE` (read case-insensitive, written
 uppercase). `currencyCode` must be exactly 3 uppercase chars.
 
-### Minimal X509 create
+### Minimal X509 create (general template, inherits from the CA)
+
+Note the `*FromCA` booleans: CRL DP / AIA (incl. the OCSP responder URL) /
+policies are inherited from the issuing CA, so this one template works for every
+CA and carries no hardcoded URLs. Set `crldps` / `aia` explicitly only to
+override — see "Inherit from the CA" above.
 
 ```json
 {
-  "name": "my-tls-server",
+  "name": "tls-server",
   "ku": { "critical": true, "values": ["digitalSignature", "keyEncipherment"] },
   "eku": {
     "critical": false,
     "values": [{ "name": "serverAuth", "oid": "1.3.6.1.5.5.7.3.1" }]
   },
-  "crldpsFromCA": false,
-  "aiaFromCA": false,
-  "policyFromCA": false,
+  "crldpsFromCA": true,
+  "aiaFromCA": true,
+  "policyFromCA": true,
   "qcStatementFromCA": false,
   "lifetime": "365d",
   "enabled": true

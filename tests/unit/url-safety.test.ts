@@ -28,6 +28,25 @@ describe('assertSafeOutboundUrl (SSRF guard)', () => {
     }
   });
 
+  it('blocks IPv4-mapped IPv6 and NAT64 wrappers of internal addresses', () => {
+    for (const u of [
+      'http://[::ffff:127.0.0.1]/x', // URL parser compresses to ::ffff:7f00:1
+      'http://[::ffff:169.254.169.254]/latest/meta-data', // cloud metadata
+      'http://[::ffff:7f00:1]/x', // already-hex loopback
+      'http://[::ffff:192.168.0.1]/x', // private
+      'http://[::ffff:10.0.0.1]/x', // private
+      'http://[64:ff9b::7f00:1]/x', // NAT64 loopback
+    ]) {
+      expect(() => assertSafeOutboundUrl(u), u).toThrow(/SSRF/i);
+    }
+  });
+
+  it('still allows IPv4-mapped IPv6 of a public address', () => {
+    expect(() =>
+      assertSafeOutboundUrl('http://[::ffff:8.8.8.8]/x'),
+    ).not.toThrow();
+  });
+
   it('blocks non-http(s) schemes', () => {
     expect(() => assertSafeOutboundUrl('file:///etc/passwd')).toThrow();
     expect(() => assertSafeOutboundUrl('gopher://1.2.3.4/')).toThrow();
