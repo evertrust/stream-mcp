@@ -1,6 +1,6 @@
 # Tool Reference
 
-All 153 tools exposed by the Stream MCP server, grouped by domain. Each tool
+All 157 tools exposed by the Stream MCP server, grouped by domain. Each tool
 carries a **safety tier** derived from its verb, surfaced to clients as MCP
 annotations:
 
@@ -56,14 +56,16 @@ Manage X509 certificate templates (issuance profiles).
 | `update_template` | idempotent | Update an X509 certificate template by name (PUT full-replace keyed by body name). GET ->  |
 | `delete_template` | destructive | Delete an X509 certificate template by name |
 
-## Revocation (CRL & OCSP) (10)
+## Revocation (CRL & OCSP) (12)
 
-CRL information, OCSP signers, and CA<->signer assignment (VA module).
+CRL information, published CRL/AIA fetch, OCSP signers, and CA<->signer assignment (VA module).
 
 | Tool | Tier | Description |
 |------|------|-------------|
 | `list_crls` | read-only | List CRL (Certificate Revocation List) information for every CA, one entry per CA, sorted  |
 | `get_crl` | read-only | Get the CRL information for a single CA by its name. Returns the CRL number, thisUpdate/ne |
+| `get_published_crl` | read-only | Fetch the actual published CRL bytes from the public distribution endpoint (PEM or base64 DER); feed into decode_crl |
+| `get_published_aia` | read-only | Fetch the issuer CA certificate from the AIA distribution endpoint (base64 DER); decode with decode_x509 |
 | `update_crl_next_refresh` | idempotent | Reschedule a CA's next CRL refresh/regeneration time. This is the ONLY mutable field of a  |
 | `list_ocsp_signers` | read-only | List OCSP signers. Each signer has a name, a privateKey (keystore + alias), an optional ce |
 | `get_ocsp_signer` | read-only | Get a single OCSP signer by name. Returns the signer with its privateKey, decoded certific |
@@ -131,7 +133,7 @@ System configuration, HTTP proxies, queues, license, dictionaries, and config ex
 | `get_san_types` | read-only | Get the supported Subject Alternative Name (SAN) type names (e.g. DNSNAME, RFC822NAME, IPA |
 | `export_configuration` | read-only | Export the full Stream configuration as an AsciiDoc ("adoc") cookbook document (text/plain |
 
-## Access Control & Identity (27)
+## Access Control & Identity (28)
 
 Roles, local identities, identity providers, credentials, principal infos, and whoami.
 
@@ -150,6 +152,7 @@ Roles, local identities, identity providers, credentials, principal infos, and w
 | `delete_local_identity` | destructive | Delete a local identity by identifier. Self-delete is forbidden by the server |
 | `reset_local_identity_password` | additive | Reset a local identity password. The server GENERATES a new random password and returns it |
 | `list_identity_providers` | read-only | List dynamic identity providers (mixed Local / OpenId). The full provider list includes ty |
+| `list_enabled_identity_providers` | read-only | List only ENABLED identity providers; set ui_only=true for those shown on the login UI |
 | `get_identity_provider` | read-only | Get a single identity provider by name |
 | `create_identity_provider` | additive | Create a dynamic identity provider (type Local or OpenId). OpenId providers manage externa |
 | `update_identity_provider` | idempotent | Update a dynamic identity provider (full-replace via PUT, lookup by name). Supply the comp |
@@ -221,7 +224,7 @@ RFC 3161 timestamping authorities, signers, and NTP clients (TSA module).
 | `update_ntp_client` | idempotent | Update an NTP client (full-replace, keyed by name). Omitted optional fields are reset. Req |
 | `delete_ntp_client` | destructive | Delete an NTP client by name. Requires the TSA module |
 
-## OpenSSH (SSH module) (19)
+## OpenSSH (SSH module) (20)
 
 SSH CAs, templates, certificates, enroll/revoke lifecycle, and KRLs.
 
@@ -246,6 +249,7 @@ SSH CAs, templates, certificates, enroll/revoke lifecycle, and KRLs.
 | `list_requestable_ssh_templates` | read-only | List the SSH CA/template combinations the caller may request for a given permission (enrol |
 | `list_krls` | read-only | List KRL info (metadata/status) across SSH CAs. Each entry has { ca, number?, thisUpdate?, |
 | `get_krl` | read-only | Get KRL info (status) for one SSH CA. Returns { ca, number?, thisUpdate?, nextRefresh?, er |
+| `get_published_krl` | read-only | Fetch the published KRL bytes for an SSH CA from the public distribution endpoint (base64) |
 
 ## Knowledge Base (2)
 
@@ -258,4 +262,4 @@ Search and read the embedded Stream knowledge documents.
 
 ---
 
-**Total: 153 tools.**
+**Total: 157 tools.**

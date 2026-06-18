@@ -142,4 +142,136 @@ describe('StreamClient', () => {
       name: 'StreamError',
     });
   });
+
+  it('captures the principal name and Stream version during lazy init', async () => {
+    route(() => new Response(JSON.stringify([]), { status: 200 }));
+    const c = makeClient();
+    await c.getList('/api/v1/cas');
+    expect(c.principalName).toBe('tester');
+    expect(c.streamVersion).toBe('2.1.9');
+  });
+
+  it('falls back to principalName "unknown" when identity has no identifier/name', async () => {
+    fetchMock.mockImplementation(async (input: any) => {
+      const url = typeof input === 'string' ? input : String(input?.url ?? '');
+      if (url.endsWith('/api/v1/security/principals/self')) {
+        return new Response(JSON.stringify({ identity: {} }), { status: 200 });
+      }
+      if (url.endsWith('/api/v1/licenses')) {
+        return new Response(JSON.stringify({ version: '2.1.9' }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    const c = makeClient();
+    await c.getList('/api/v1/cas');
+    expect(c.principalName).toBe('unknown');
+  });
+
+  it('logs a tested Stream version as fully compatible', async () => {
+    const writeSpy = vi
+      .spyOn(process.stderr, 'write')
+      .mockReturnValue(true as any);
+    route(() => new Response(JSON.stringify([]), { status: 200 }));
+    const c = new StreamClient(
+      'https://stream.test',
+      new LocalAccountAuthProvider('a', 'b', 'local'),
+      {
+        timeout: 5,
+        exportTimeout: 5,
+        verifySsl: true,
+        testedVersions: ['2.1'],
+      },
+    );
+    await c.getList('/api/v1/cas');
+    const logs = writeSpy.mock.calls.map((c) => String(c[0])).join('');
+    expect(logs).toContain('tested - full compatibility');
+    writeSpy.mockRestore();
+  });
+
+  it('classifies a connection-refused error with a STREAM_URL hint', async () => {
+    route((_url, init) => {
+      if (init?.method === 'POST') {
+        const e: any = new Error('connect failed');
+        e.cause = { code: 'ECONNREFUSED' };
+        throw e;
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    await expect(
+      makeClient().post('/api/v1/cas', { name: 'x' }),
+    ).rejects.toMatchObject({
+      name: 'StreamError',
+      remediation: expect.stringContaining('STREAM_URL'),
+    });
+  });
+
+  it('classifies a request timeout (AbortSignal.timeout) with a timeout hint', async () => {
+    route((_url, init) => {
+      if (init?.method === 'POST') {
+        const e: any = new Error('aborted');
+        e.name = 'TimeoutError';
+        throw e;
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    await expect(
+      makeClient().post('/api/v1/cas', { name: 'x' }),
+    ).rejects.toMatchObject({
+      name: 'StreamError',
+      remediation: expect.stringContaining('STREAM_TIMEOUT'),
+    });
+  });
+
+  it('classifies a TLS handshake failure with a TLS hint', async () => {
+    route((_url, init) => {
+      if (init?.method === 'POST') {
+        const e: any = new Error('tls');
+        e.cause = { code: 'CERT_HAS_EXPIRED' };
+        throw e;
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    await expect(
+      makeClient().post('/api/v1/cas', { name: 'x' }),
+    ).rejects.toMatchObject({
+      name: 'StreamError',
+      remediation: expect.stringContaining('TLS'),
+    });
+  });
+
+  it('does not retry a mutation (POST) on a 503', async () => {
+    let postCalls = 0;
+    route((_url, init) => {
+      if (init?.method === 'POST') {
+        postCalls += 1;
+        return new Response(JSON.stringify({ error: 'X-001' }), {
+          status: 503,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    await expect(makeClient().post('/api/v1/cas', {})).rejects.toMatchObject({
+      statusCode: 503,
+    });
+    expect(postCalls).toBe(1);
+  });
+
+  it('does not retry a GET marked noRetry on a 503', async () => {
+    let getCalls = 0;
+    route((url) => {
+      if (url.endsWith('/api/v1/cas/x/crl')) {
+        getCalls += 1;
+        return new Response(JSON.stringify({ error: 'X-001' }), {
+          status: 503,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    await expect(
+      makeClient().get('/api/v1/cas/x/crl', undefined, { noRetry: true }),
+    ).rejects.toMatchObject({ statusCode: 503 });
+    expect(getCalls).toBe(1);
+  });
 });

@@ -29,6 +29,8 @@ const SERVER_INSTRUCTIONS = [
   '  issue_ca) vs import (external CA certificate). See knowledge below.',
   '',
   'Where to look:',
+  '- Unsure which tool to use? Call search_docs (then get_doc) FIRST and start',
+  '  with stream://knowledge/tool-selection - the deterministic intent-to-tool map.',
   '- Operating rules + workflows: stream://knowledge/server-rules',
   '- Query syntax (SEQL = events, SCQL = certificates): stream://knowledge/query-languages',
   '- CA management workflows: stream://knowledge/ca-management',
@@ -60,10 +62,27 @@ async function main(): Promise<void> {
 
   logger.info('Stream MCP server ready - auth triggers on first tool call.');
 
+  // Last-resort handlers so an async failure outside a tool handler is logged
+  // rather than crashing silently. An uncaught exception leaves the process in
+  // an unknown state, so we exit; an unhandled rejection is logged only.
+  process.on('uncaughtException', (err) => {
+    logger.error(
+      `Uncaught exception: ${err instanceof Error ? err.stack : err}`,
+    );
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    logger.error(`Unhandled promise rejection: ${reason}`);
+  });
+
+  let shuttingDown = false;
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, async () => {
+      if (shuttingDown) return; // ignore a second signal mid-shutdown
+      shuttingDown = true;
       let exitCode = 0;
       try {
+        await server.close(); // stop accepting requests / close the transport
         await client.close();
         await auth.cleanup();
       } catch (err) {

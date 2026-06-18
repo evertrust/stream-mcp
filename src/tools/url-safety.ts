@@ -35,6 +35,30 @@ function ipv4IsInternal(ip: string): boolean {
   return false;
 }
 
+/**
+ * Extract the embedded IPv4 from an IPv4-mapped (`::ffff:…`) or NAT64
+ * (`64:ff9b::…`) IPv6 literal, as dotted-decimal. The WHATWG URL parser
+ * compresses these to hex (e.g. `::ffff:127.0.0.1` -> `::ffff:7f00:1`), so the
+ * embedded v4 lives in the last two 16-bit groups - reconstruct it so the v4
+ * internal-range rules apply. Also handles a literal dotted tail. Returns
+ * undefined for any other IPv6 (which the caller then treats as external).
+ */
+function embeddedIpv4FromIpv6(h: string): string | undefined {
+  // Dotted-quad tail, e.g. "::ffff:127.0.0.1" (rare once URL-parsed).
+  const dotted = h.match(/:((?:\d{1,3}\.){3}\d{1,3})$/);
+  if (dotted) return dotted[1];
+  // Hex tail for ::ffff: (IPv4-mapped) and 64:ff9b:: (NAT64) prefixes.
+  const hex = h.match(
+    /^(?:::ffff:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i,
+  );
+  if (hex) {
+    const hi = Number.parseInt(hex[1]!, 16);
+    const lo = Number.parseInt(hex[2]!, 16);
+    return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+  }
+  return undefined;
+}
+
 /** True if a literal host is loopback / link-local / private (best-effort). */
 function hostIsInternal(rawHost: string): boolean {
   const h = rawHost.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
@@ -44,7 +68,11 @@ function hostIsInternal(rawHost: string): boolean {
   if (h === '::1' || h === '::') return true; // loopback / unspecified
   if (h.startsWith('fe80:')) return true; // link-local
   if (h.startsWith('fc') || h.startsWith('fd')) return true; // unique local fc00::/7
-  if (h.startsWith('::ffff:')) return ipv4IsInternal(h.slice('::ffff:'.length));
+  // IPv4 embedded in IPv6 (IPv4-mapped ::ffff:, NAT64 64:ff9b::). Must run
+  // BEFORE the bare-v4 check: the URL parser emits the hex form, so a naive
+  // prefix-slice would miss e.g. ::ffff:7f00:1 (= 127.0.0.1) entirely.
+  const embedded = embeddedIpv4FromIpv6(h);
+  if (embedded !== undefined) return ipv4IsInternal(embedded);
   // IPv4
   return ipv4IsInternal(h);
 }

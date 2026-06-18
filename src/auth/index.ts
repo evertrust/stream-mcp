@@ -14,6 +14,20 @@ const logger = getLogger('stream_mcp.auth');
 export function createAuthProvider(settings: StreamSettings): AuthProvider {
   // Priority 1: mTLS (client certificate)
   if (settings.clientCert || settings.clientPfx) {
+    if (settings.apiId) {
+      logger.warning(
+        'Both mTLS (STREAM_CLIENT_CERT/PFX) and local-account (STREAM_API_ID) ' +
+          'credentials are set - using mTLS and ignoring the API headers.',
+      );
+    }
+    // A client certificate is only presented over TLS; on an http:// origin
+    // undici silently drops it, turning strong auth into no auth. Fail loud.
+    if (!/^https:\/\//i.test(settings.url)) {
+      throw new Error(
+        `mTLS requires an https:// STREAM_URL - the client certificate is only ` +
+          `presented on a TLS connection. Got "${settings.url}".`,
+      );
+    }
     if (settings.clientCert && settings.clientPfx) {
       throw new Error('Set STREAM_CLIENT_CERT or STREAM_CLIENT_PFX, not both.');
     }

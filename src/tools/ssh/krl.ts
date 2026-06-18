@@ -44,9 +44,11 @@ function registerGenerate(server: McpServer, client: StreamClient): void {
       const params = args.lazy
         ? new URLSearchParams({ lazy: 'true' })
         : undefined;
+      // This GET triggers async KRL generation server-side; do not auto-retry.
       await client.get(
         `/api/v1/ssh/cas/${encodePathSegment(args.name)}/krl`,
         params,
+        { noRetry: true },
       );
       return text(
         JSON.stringify({
@@ -123,6 +125,37 @@ function registerGet(server: McpServer, client: StreamClient): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// get_published_krl
+// ---------------------------------------------------------------------------
+
+function registerGetPublished(server: McpServer, client: StreamClient): void {
+  registerTool(
+    server,
+    'get_published_krl',
+    {
+      description:
+        "Fetch an SSH CA's PUBLISHED KRL bytes from the public distribution " +
+        'endpoint (GET /krls/:ca), returned as base64. This is the actual ' +
+        'binary artifact, unlike get_krl which returns only status/metadata. ' +
+        'Unauthenticated/public endpoint.\nSafety tier: read-only',
+      inputSchema: GET_INPUT,
+    },
+    async (args) => {
+      const buf = await client.getBytes(
+        `/krls/${encodePathSegment(args.ca)}`,
+        client.exportTimeout,
+      );
+      return text(
+        JSON.stringify({
+          ca: args.ca,
+          base64: Buffer.from(buf).toString('base64'),
+        }),
+      );
+    },
+  );
+}
+
 export function registerSshKrlTools(
   server: McpServer,
   client: StreamClient,
@@ -130,4 +163,5 @@ export function registerSshKrlTools(
   registerGenerate(server, client);
   registerList(server, client);
   registerGet(server, client);
+  registerGetPublished(server, client);
 }

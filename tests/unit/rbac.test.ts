@@ -46,6 +46,7 @@ const EXPECTED_TOOLS = [
   'delete_local_identity',
   'reset_local_identity_password',
   'list_identity_providers',
+  'list_enabled_identity_providers',
   'get_identity_provider',
   'create_identity_provider',
   'update_identity_provider',
@@ -63,11 +64,11 @@ const EXPECTED_TOOLS = [
 ];
 
 describe('rbac registration', () => {
-  it('registers exactly the 27 expected tools', () => {
+  it('registers exactly the 28 expected tools', () => {
     const { calls } = setup();
     const names = calls.map((c) => c.n).sort();
     expect(names).toEqual([...EXPECTED_TOOLS].sort());
-    expect(names.length).toBe(27);
+    expect(names.length).toBe(28);
   });
 });
 

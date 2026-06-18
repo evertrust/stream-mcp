@@ -12,7 +12,7 @@ Most MCP servers hand an LLM a list of tools and leave it to figure out the doma
 
 ## Features
 
-- **153 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`) surfaced as MCP tool annotations.
+- **157 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`) surfaced as MCP tool annotations.
 - **Knowledge catalog**: 15 topic URIs (with auto-generated section URIs for the longer guides) plus `search_docs` / `get_doc` tools.
 - **Two authentication modes**: local account (API headers) and mutual TLS (PEM or PKCS#12). No OIDC.
 - **Query languages**: SCQL (Stream Certificates Query Language) for certificate search/aggregate and SEQL (Stream Events Query Language) for the audit log, documented in `stream://knowledge/query-languages`.
@@ -25,14 +25,14 @@ Tool counts per domain:
 
 | Domain                          | Tools | Highlights                                                                 |
 | ------------------------------- | ----: | ------------------------------------------------------------------------- |
-| Access control & identity       |    27 | roles, local identities, identity providers, credentials, `whoami`        |
+| Access control & identity       |    28 | roles, local identities, identity providers, credentials, `whoami`        |
 | System management               |    19 | config, HTTP proxies, queues, license, dictionaries, AsciiDoc export      |
-| OpenSSH (SSH module)            |    19 | SSH CAs, templates, certificate search/enroll/revoke, KRLs                 |
+| OpenSSH (SSH module)            |    20 | SSH CAs, templates, certificate search/enroll/revoke, KRLs                 |
 | Timestamping (TSA)             |    16 | TSA authorities, signers (+ CSR), NTP clients                             |
 | Utilities & decoders            |    14 | X.509/CSR/CRL/PKCS#12/OpenSSH decoders, trust chains, EKUs                 |
 | X.509 certificate authorities   |    12 | create-from-scratch, import, CSR, issue, enhance, migrate, CRL upload      |
 | Cryptographic storage           |    12 | keystores (software/PKCS#11/AWS/Azure/GCP), keys, HSM introspection        |
-| Revocation (CRL & OCSP)        |    10 | CRL info, OCSP signers (+ CSR), assign-signer-to-CA                        |
+| Revocation (CRL & OCSP)        |    12 | CRL info + published CRL/AIA fetch, OCSP signers (+ CSR), assign-to-CA     |
 | X.509 certificates & lifecycle  |     6 | SCQL search/aggregate, enroll, revoke, requestable templates              |
 | Triggers & notifications        |     6 | email / REST notifications, expiration triggers, dry-run test             |
 | X.509 certificate templates     |     5 | issuance-profile CRUD                                                      |
@@ -43,7 +43,7 @@ Full per-tool table with safety tiers in [docs/tools-reference.md](docs/tools-re
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) 1.x+ (recommended) or Node.js >= 24.10
+- [Bun](https://bun.sh/) 1.x+ (recommended) or Node.js >= 22.19
 - An Evertrust Stream 2.1 instance
 - A local account (username/password) or a client certificate for that instance
 
@@ -68,6 +68,13 @@ bun install
 bun run build
 node dist/index.js
 ```
+
+### Option 3 - prebuilt standalone binary
+
+Each GitHub release attaches self-contained binaries (no Node/Bun required) for
+Linux (x64/arm64), macOS (x64/arm64), and Windows (x64). Download the one for
+your platform from the [Releases](https://github.com/evertrust/stream-mcp/releases)
+page, make it executable, and run it directly.
 
 The server speaks MCP over **stdio** - it is normally launched by an MCP client rather than run by hand (see [MCP client setup](#mcp-client-setup)).
 
@@ -180,7 +187,7 @@ See [docs/authentication.md](docs/authentication.md) for the full step-by-step g
 
 ## Tool catalog overview
 
-The 153 tools are grouped into 13 domains. Each tool ships with explicit guidance for smaller models and clearly distinguishes mandatory from optional inputs. The table above lists per-domain counts; [docs/tools-reference.md](docs/tools-reference.md) has the full per-tool table with safety tiers and one-line descriptions.
+The 157 tools are grouped into 13 domains. Each tool ships with explicit guidance for smaller models and clearly distinguishes mandatory from optional inputs. The table above lists per-domain counts; [docs/tools-reference.md](docs/tools-reference.md) has the full per-tool table with safety tiers and one-line descriptions.
 
 Knowledge resources are exposed at `stream://knowledge/*` URIs. See [docs/knowledge-resources.md](docs/knowledge-resources.md) for the full catalog.
 
@@ -292,9 +299,8 @@ Create a local account for a new operator and return its one-time password.
 ## What is not supported
 
 - **OIDC sign-in for the MCP server** - only local-account and mTLS auth are supported (OIDC providers can be *managed* as configuration objects, but not used to authenticate the MCP itself).
-- **Protocol responder traffic** - the OCSP (`/ocsp`), TSA (`/tsa`), CRL and AIA distribution endpoints are wire-protocol services; this MCP manages their *configuration* (signers, CAs, CRLs), not the responder traffic.
+- **Protocol responder traffic** - the OCSP (`/ocsp`) and TSA (`/tsa`) endpoints are wire-protocol services; this MCP manages their *configuration* (signers, CAs), not the responder traffic. The published CRL / AIA / KRL artifacts can be *fetched* read-only (`get_published_crl` / `get_published_aia` / `get_published_krl`) for inspection.
 - **Deleting issued certificates** - Stream exposes no API to delete an issued certificate; revocation is the terminal state.
-- **Standalone binaries** - run from npm (`bunx`/`npx`) or from source.
 
 ## Contributing
 
@@ -322,7 +328,7 @@ For local setup, project layout, architecture, how to add a tool, and the full t
 | [Installation](docs/installation.md)                | Install methods, configuration, troubleshooting                   |
 | [Authentication](docs/authentication.md)            | Local-account and mTLS modes with environment-variable reference  |
 | [Client setup](docs/client-setup.md)                | Claude Desktop, Claude Code, Cursor, Codex, MCP Inspector         |
-| [Tool reference](docs/tools-reference.md)           | All 153 tools by domain with safety tiers                         |
+| [Tool reference](docs/tools-reference.md)           | All 157 tools by domain with safety tiers                         |
 | [Knowledge resources](docs/knowledge-resources.md)  | `stream://knowledge/*` catalog and the `search_docs` / `get_doc` tools |
 | [Development](docs/development.md)                   | Dev setup, architecture, tests, contributing                      |
 

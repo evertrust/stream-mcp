@@ -28,7 +28,26 @@ const CONNECTION_CAUSE_CODES = new Set([
   'ETIMEDOUT',
   'ECONNRESET',
   'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EPIPE',
+  'ECONNABORTED',
+  'EAI_AGAIN',
   'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+]);
+
+// TLS-handshake failure codes get a TLS-specific remediation (often a verifySsl
+// or trust-store issue rather than a connectivity one).
+const TLS_CAUSE_CODES = new Set([
+  'CERT_HAS_EXPIRED',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'CERT_UNTRUSTED',
 ]);
 
 function getCauseCode(err: unknown): string | undefined {
@@ -37,6 +56,13 @@ function getCauseCode(err: unknown): string | undefined {
     if (cause && typeof cause === 'object' && 'code' in cause) {
       return (cause as { code?: string }).code;
     }
+  }
+  return undefined;
+}
+
+function getErrorName(err: unknown): string | undefined {
+  if (err && typeof err === 'object' && 'name' in err) {
+    return (err as { name?: string }).name;
   }
   return undefined;
 }
@@ -73,7 +99,7 @@ async function readJsonBounded<T>(resp: Response, path: string): Promise<T> {
     }
   }
   const text = await resp.text();
-  if (text.length > MAX_RESPONSE_BYTES) {
+  if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) {
     throw new StreamError(0, {
       message: `Response from ${path} exceeds ${MAX_RESPONSE_BYTES} bytes (received: ${text.length})`,
       remediation:
@@ -84,9 +110,35 @@ async function readJsonBounded<T>(resp: Response, path: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+/**
+ * Read an HTTP error body without buffering an unbounded payload: if the
+ * declared size already exceeds the cap, skip the read; otherwise read and
+ * truncate. Error bodies are tiny in practice, but a misbehaving proxy can
+ * return a huge HTML page on a 5xx.
+ */
+async function readErrorBodyBounded(resp: Response): Promise<string> {
+  const contentLength = resp.headers.get('content-length');
+  if (contentLength) {
+    const declared = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+      return `<error body omitted: ${declared} bytes exceeds ${MAX_RESPONSE_BYTES}>`;
+    }
+  }
+  const text = await resp.text();
+  return Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES
+    ? text.slice(0, MAX_RESPONSE_BYTES)
+    : text;
+}
+
 export interface RequestOptions<T = unknown> {
   timeout?: number;
   schema?: ZodType<T>;
+  /**
+   * Opt out of automatic retry for a safe (GET/HEAD) request that nonetheless
+   * has a side effect server-side (e.g. generate_crl/generate_krl trigger
+   * asynchronous generation via GET). Retrying those would re-fire the action.
+   */
+  noRetry?: boolean;
 }
 
 export interface MultipartPart {
@@ -129,6 +181,14 @@ export class StreamClient {
     this._testedVersions = options.testedVersions ?? [];
     this._warnVersions = options.warnVersions ?? [];
 
+    if (!options.verifySsl) {
+      logger.warning(
+        'TLS certificate verification is DISABLED (STREAM_VERIFY_SSL=false) - ' +
+          'the connection to Stream is vulnerable to interception. Never use ' +
+          'this in production.',
+      );
+    }
+
     const authConnect = auth.getDispatcherOptions();
     const connectOptions: Agent.Options['connect'] = {
       ...((typeof authConnect === 'object' ? authConnect : {}) as Record<
@@ -151,6 +211,7 @@ export class StreamClient {
     const url = params ? `${path}?${params.toString()}` : path;
     const resp = await this._request('GET', url, {
       timeoutMs: opts?.timeout ? opts.timeout * 1000 : undefined,
+      noRetry: opts?.noRetry,
     });
     if (resp.status === 204) return null as unknown as T;
     const parsed = await readJsonBounded<T>(resp, url);
@@ -262,17 +323,22 @@ export class StreamClient {
     const resp = await this._request('GET', path, { accept, timeoutMs });
     assertDeclaredSizeWithinCap(resp, path);
     const txt = await resp.text();
-    if (txt.length > MAX_RESPONSE_BYTES) {
+    if (Buffer.byteLength(txt, 'utf8') > MAX_RESPONSE_BYTES) {
       throw oversizedError(path, txt.length);
     }
     return txt;
   }
 
-  /** POST multipart/form-data (file uploads, RFC5280 decoders). */
+  /**
+   * POST multipart/form-data (file uploads, RFC5280 decoders). Multipart bodies
+   * are the large/slow operations (CRL upload, file decode), so they default to
+   * the longer `exportTimeout`; pass `timeoutMs` to override.
+   */
   async postMultipart<T = unknown>(
     path: string,
     parts: MultipartPart[],
     accept = 'application/json',
+    timeoutMs?: number,
   ): Promise<T> {
     const formData = new UndiciFormData();
     for (const part of parts) {
@@ -290,17 +356,23 @@ export class StreamClient {
     const requestId = randomUUID().slice(0, 12);
     headers['X-Request-Id'] = requestId;
 
+    const effectiveTimeout = timeoutMs ?? this.exportTimeout;
     const start = performance.now();
-    const resp = await undiciFetch(`${this._baseUrl}${path}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-      dispatcher: this._agent,
-      signal: AbortSignal.timeout(this._timeout),
-    } as UndiciRequestInit);
+    let resp: Response;
+    try {
+      resp = await undiciFetch(`${this._baseUrl}${path}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        dispatcher: this._agent,
+        signal: AbortSignal.timeout(effectiveTimeout),
+      } as UndiciRequestInit);
+    } catch (err) {
+      throw this._classifyTransportError(err, effectiveTimeout) ?? err;
+    }
 
     const durationMs = Math.round(performance.now() - start);
-    logger.info(`HTTP POST ${path} -> ${resp.status} (${durationMs}ms)`, {
+    logger.debug(`HTTP POST ${path} -> ${resp.status} (${durationMs}ms)`, {
       request_id: requestId,
       method: 'POST',
       path,
@@ -309,7 +381,7 @@ export class StreamClient {
     });
 
     if (resp.status >= 400) {
-      throw parseErrorResponse(resp.status, await resp.text());
+      throw parseErrorResponse(resp.status, await readErrorBodyBounded(resp));
     }
     if (resp.status === 204) return null as unknown as T;
     return readJsonBounded<T>(resp, path);
@@ -323,7 +395,14 @@ export class StreamClient {
 
   private async _ensureInitialized(): Promise<void> {
     if (this._initialized) return;
-    if (!this._initPromise) this._initPromise = this._doLazyInit();
+    if (!this._initPromise) {
+      // Reset the memoized promise if init rejects, so a later call can retry
+      // rather than awaiting a permanently-rejected promise (server wedge).
+      this._initPromise = this._doLazyInit().catch((err: unknown) => {
+        this._initPromise = null;
+        throw err;
+      });
+    }
     await this._initPromise;
   }
 
@@ -344,7 +423,10 @@ export class StreamClient {
         },
       );
       if (resp.status === 200) {
-        const principal = (await resp.json()) as Record<string, unknown>;
+        const principal = await readJsonBounded<Record<string, unknown>>(
+          resp,
+          '/api/v1/security/principals/self',
+        );
         const identity = (principal['identity'] ?? {}) as Record<
           string,
           unknown
@@ -373,7 +455,10 @@ export class StreamClient {
         signal: AbortSignal.timeout(this._timeout),
       });
       if (resp.status === 200) {
-        const license = (await resp.json()) as Record<string, unknown>;
+        const license = await readJsonBounded<Record<string, unknown>>(
+          resp,
+          '/api/v1/licenses',
+        );
         const version =
           (license['version'] as string | undefined) ??
           (license['streamVersion'] as string | undefined);
@@ -411,7 +496,12 @@ export class StreamClient {
   private async _request(
     method: string,
     path: string,
-    opts: { body?: string; timeoutMs?: number; accept?: string },
+    opts: {
+      body?: string;
+      timeoutMs?: number;
+      accept?: string;
+      noRetry?: boolean;
+    },
   ): Promise<Response> {
     const requestId = randomUUID().slice(0, 12);
     const start = performance.now();
@@ -436,27 +526,22 @@ export class StreamClient {
     const fullUrl = `${this._baseUrl}${path}`;
     let resp: Response;
     try {
-      resp = await this._doRequest(method, fullUrl, fetchOpts, timeoutMs);
+      resp = await this._doRequest(
+        method,
+        fullUrl,
+        fetchOpts,
+        timeoutMs,
+        opts.noRetry,
+      );
     } catch (err) {
-      const causeCode = getCauseCode(err);
-      const isConnectionError =
-        (causeCode !== undefined && CONNECTION_CAUSE_CODES.has(causeCode)) ||
-        (causeCode === undefined &&
-          err instanceof TypeError &&
-          String(err).includes('fetch'));
-      if (isConnectionError) {
-        throw new StreamError(0, {
-          message: `Connection to ${this._baseUrl} failed${
-            causeCode ? ` (${causeCode})` : ''
-          }: ${err}`,
-          remediation: 'Check STREAM_URL and network connectivity.',
-        });
-      }
-      throw err;
+      throw this._classifyTransportError(err, timeoutMs) ?? err;
     }
 
     const durationMs = Math.round(performance.now() - start);
-    logger.info(`HTTP ${method} ${path} -> ${resp.status} (${durationMs}ms)`, {
+    // Per-request success logging is DEBUG, not INFO: it is also mirrored to the
+    // MCP client via notifications/message, and one INFO line per HTTP call (the
+    // scaffold issues several per tool call) floods the agent session.
+    logger.debug(`HTTP ${method} ${path} -> ${resp.status} (${durationMs}ms)`, {
       request_id: requestId,
       method,
       path,
@@ -465,7 +550,7 @@ export class StreamClient {
     });
 
     if (resp.status >= 400) {
-      throw parseErrorResponse(resp.status, await resp.text());
+      throw parseErrorResponse(resp.status, await readErrorBodyBounded(resp));
     }
     return resp;
   }
@@ -475,12 +560,14 @@ export class StreamClient {
     url: string,
     fetchOpts: UndiciRequestInit & { dispatcher: Agent },
     timeoutMs: number,
+    noRetry?: boolean,
   ): Promise<Response> {
     const upper = method.toUpperCase();
     // Safe methods auto-retry on transient failures; mutations do not. Each
     // retry attempt needs a FRESH timeout signal (an aborted one stays aborted),
     // and it must honor the caller's timeout (e.g. exportTimeout), not the default.
-    if (upper === 'GET' || upper === 'HEAD') {
+    // `noRetry` opts a safe method out (e.g. a GET that triggers async work).
+    if ((upper === 'GET' || upper === 'HEAD') && !noRetry) {
       return withRetry(() =>
         undiciFetch(url, {
           ...fetchOpts,
@@ -489,6 +576,54 @@ export class StreamClient {
       );
     }
     return undiciFetch(url, fetchOpts);
+  }
+
+  /**
+   * Map a thrown fetch/transport error to a clear StreamError, or return
+   * undefined to let the original error propagate. Recognizes request timeouts
+   * (AbortSignal.timeout), TLS-handshake failures, and connection-level cause
+   * codes; falls back to the undici "fetch failed" TypeError shape.
+   */
+  private _classifyTransportError(
+    err: unknown,
+    timeoutMs: number,
+  ): StreamError | undefined {
+    const name = getErrorName(err);
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      return new StreamError(0, {
+        message: `Request to ${this._baseUrl} timed out after ${timeoutMs}ms`,
+        remediation:
+          'Increase STREAM_TIMEOUT (or STREAM_EXPORT_TIMEOUT for large exports), ' +
+          'or check that Stream is responsive.',
+      });
+    }
+
+    const causeCode = getCauseCode(err);
+    if (causeCode !== undefined && TLS_CAUSE_CODES.has(causeCode)) {
+      return new StreamError(0, {
+        message: `TLS handshake with ${this._baseUrl} failed (${causeCode})`,
+        remediation:
+          'Verify the Stream TLS certificate and trust chain. As a last resort ' +
+          'for a known-trusted internal host, STREAM_VERIFY_SSL=false disables ' +
+          'verification (never in production).',
+      });
+    }
+
+    const isConnectionError =
+      (causeCode !== undefined && CONNECTION_CAUSE_CODES.has(causeCode)) ||
+      (causeCode === undefined &&
+        err instanceof TypeError &&
+        String(err).includes('fetch'));
+    if (isConnectionError) {
+      return new StreamError(0, {
+        message: `Connection to ${this._baseUrl} failed${
+          causeCode ? ` (${causeCode})` : ''
+        }`,
+        remediation: 'Check STREAM_URL and network connectivity.',
+      });
+    }
+
+    return undefined;
   }
 
   private async _requestJson<T>(

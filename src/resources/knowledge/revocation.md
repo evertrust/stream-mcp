@@ -41,6 +41,8 @@ Errors: `400 CRL-002` (missing/bad `nextRefresh`), `404 CA-003` (no CRLInfo for 
 
 An `OCSPSigner` is a VA responder identity: a private key (in a keystore) + eventually an OCSP-signing certificate. Lifecycle: **create with a `dn` and `privateKey` → `generate_ocsp_signer_csr` → get the CSR signed by the CA → import the cert (out of band) → assign to a CA.** All OCSP-signer tools require the **VA module** (otherwise the licensed-action wrapper rejects the call).
 
+You create **one** OCSP signer and `assign_ocsp_signer_to_ca` — there is no "OCSP signer per template". How does an issued cert tell clients where the responder is? Via its **AIA** extension (`aia.ocsp`), which is configured on the **CA** and inherited by issued certs when the certificate template sets `aiaFromCA: true` (see `stream://knowledge/templates`). So the responder URL is wired once (CA `aia.ocsp` + `ocspSigner`) and templates inherit it — never restate OCSP/AIA URLs across multiple templates.
+
 Tools:
 
 - `list_ocsp_signers` — `GET /api/v1/ocsp/signers`. **Empty/forbidden → 204.**

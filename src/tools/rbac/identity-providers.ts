@@ -15,7 +15,11 @@ import {
   registerDeleteTool,
   registerReadTools,
 } from '../_scaffold.js';
-import { buildMutateResponse, encodePathSegment } from '../helpers.js';
+import {
+  buildListResponse,
+  buildMutateResponse,
+  encodePathSegment,
+} from '../helpers.js';
 import { registerTool } from '../register.js';
 import { DYNAMIC_PROVIDER_TYPES } from './enums.js';
 
@@ -156,6 +160,35 @@ export function registerIdentityProviderTools(
       `provider list includes types ${DYNAMIC_PROVIDER_TYPES.join(', ')}.`,
     getDescription: 'Get a single identity provider by name.',
   });
+
+  registerTool(
+    server,
+    'list_enabled_identity_providers',
+    {
+      description:
+        'List identity providers that are currently ENABLED (a lighter view ' +
+        'than list_identity_providers, which returns every configured provider ' +
+        'regardless of state). Set ui_only=true to restrict to providers shown ' +
+        'on the login UI (enabledOnUI).\nSafety tier: read-only',
+      inputSchema: z.object({
+        ui_only: z
+          .boolean()
+          .optional()
+          .describe('Only providers shown on the login UI (default false).'),
+      }),
+    },
+    async ({ ui_only }) => {
+      const params =
+        ui_only === undefined
+          ? undefined
+          : new URLSearchParams({ enabledOnUI: String(ui_only) });
+      const items = await client.getList<Record<string, unknown>>(
+        `${ROUTE}/dynamic/enabled`,
+        params,
+      );
+      return text(buildListResponse(items, 100, SPEC.noun));
+    },
+  );
 
   registerTool(
     server,

@@ -8,7 +8,7 @@ cd stream-mcp
 bun install
 ```
 
-Node.js ≥ 24.10 (or Bun 1.x+). TypeScript, ESM.
+Node.js ≥ 22.19 (or Bun 1.x+). TypeScript, ESM.
 
 ## Scripts
 
