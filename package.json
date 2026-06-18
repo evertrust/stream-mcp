@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "description": "MCP server for Evertrust Stream 2.1 (PKI: CA, VA/OCSP, TSA, SSH)",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evertrust/stream-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/evertrust/stream-mcp/issues"
+  },
+  "homepage": "https://github.com/evertrust/stream-mcp#readme",
   "type": "module",
   "bin": {
     "stream-mcp": "dist/index.js"
