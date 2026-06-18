@@ -30,8 +30,9 @@ describe('server integration', () => {
     const names = tools.map((t) => t.name);
     const dupes = names.filter((n, i) => names.indexOf(n) !== i);
     expect(dupes).toEqual([]);
-    // 151 domain tools (+ any describe_*_schema helpers for polymorphic objects).
-    expect(names.length).toBeGreaterThanOrEqual(151);
+    // Exact tool count - a drift tripwire. When this changes, update the
+    // documented totals in README.md and docs/tools-reference.md to match.
+    expect(names.length).toBe(157);
   });
 
   it('exposes representative tools from every domain', async () => {
@@ -119,5 +120,45 @@ describe('server integration', () => {
     expect(
       byName.get('run_event_integrity_check')?.annotations?.idempotentHint,
     ).toBe(false);
+  });
+
+  it('every tool description carries a Safety tier line', async () => {
+    const tools = await bootAndListTools();
+    const missing = tools
+      .filter((t) => !(t.description ?? '').includes('Safety tier'))
+      .map((t) => t.name);
+    expect(missing).toEqual([]);
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    // Auto-derived tiers for previously-unlabelled hand-written tools.
+    expect(byName.get('search_certificates')?.description).toContain(
+      'Safety tier: read-only',
+    );
+    expect(byName.get('revoke_certificate')?.description).toContain(
+      'Safety tier: mutating-destructive',
+    );
+    expect(byName.get('enroll_certificate')?.description).toContain(
+      'Safety tier: mutating-safe',
+    );
+  });
+
+  it('classifies prefix edge cases correctly', async () => {
+    const tools = await bootAndListTools();
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    const ann = (n: string) => byName.get(n)?.annotations;
+    // generate_*_csr derives a CSR with no state change -> read-only.
+    expect(ann('generate_ca_csr')?.readOnlyHint).toBe(true);
+    // find_* is a read-only POST search.
+    expect(ann('find_ca_keys')?.readOnlyHint).toBe(true);
+    // assign_* converges -> idempotent mutation, not destructive.
+    expect(ann('assign_ocsp_signer_to_ca')?.idempotentHint).toBe(true);
+    expect(ann('assign_ocsp_signer_to_ca')?.destructiveHint).toBe(false);
+    // migrate_* is one-way (repeat -> error) -> additive, NOT idempotent.
+    expect(ann('migrate_ca')?.idempotentHint).toBe(false);
+    expect(ann('migrate_ca')?.readOnlyHint).toBe(false);
+    // reset_* mints fresh state each call -> additive, NOT idempotent.
+    expect(ann('reset_local_identity_password')?.idempotentHint).toBe(false);
+    // enroll_* creates a new certificate -> additive, open-world, not read-only.
+    expect(ann('enroll_certificate')?.readOnlyHint).toBe(false);
+    expect(ann('enroll_certificate')?.openWorldHint).toBe(true);
   });
 });

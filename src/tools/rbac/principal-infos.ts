@@ -17,6 +17,7 @@ import {
   buildMutateResponse,
   buildSearchResponse,
   encodePathSegment,
+  redactedJson,
 } from '../helpers.js';
 import { registerTool } from '../register.js';
 import { PERMISSION_GRAMMAR, toPermissionObjects } from './permissions.js';
@@ -61,7 +62,7 @@ export function registerPrincipalInfoTools(
       const result = await client.get(
         `${ROUTE}/${encodePathSegment(identifier)}`,
       );
-      return text(JSON.stringify(result));
+      return text(redactedJson(result));
     },
   );
 

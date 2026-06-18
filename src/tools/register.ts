@@ -15,8 +15,11 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 
-import { StreamError } from '../client/errors.js';
+import { StreamError, redactValue } from '../client/errors.js';
+import { getLogger } from '../logging.js';
 import { buildToolDescription } from './guidance.js';
+
+const logger = getLogger('stream_mcp.tools');
 
 type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
@@ -66,15 +69,38 @@ const TITLE_OVERRIDES: Record<string, string> = {
   export_configuration: 'Export configuration (AsciiDoc)',
 };
 
+// PKI acronyms that should render upper-case (with the natural plural) rather
+// than title-cased, e.g. "List CAs" not "List Cas", "Get OCSP signer".
+const ACRONYM_SEGMENTS: Record<string, string> = {
+  ca: 'CA',
+  cas: 'CAs',
+  crl: 'CRL',
+  crls: 'CRLs',
+  csr: 'CSR',
+  ocsp: 'OCSP',
+  tsa: 'TSA',
+  ssh: 'SSH',
+  krl: 'KRL',
+  krls: 'KRLs',
+  hsm: 'HSM',
+  ntp: 'NTP',
+  eku: 'EKU',
+  ekus: 'EKUs',
+  dn: 'DN',
+  san: 'SAN',
+  aia: 'AIA',
+  tls: 'TLS',
+};
+
+function capitalizeSegment(seg: string): string {
+  if (seg.length === 0) return seg;
+  return ACRONYM_SEGMENTS[seg] ?? seg[0]!.toUpperCase() + seg.slice(1);
+}
+
 function titleFromName(name: string): string {
   const override = TITLE_OVERRIDES[name];
   if (override) return override;
-  return name
-    .split('_')
-    .map((seg) =>
-      seg.length === 0 ? seg : seg[0]!.toUpperCase() + seg.slice(1),
-    )
-    .join(' ');
+  return name.split('_').map(capitalizeSegment).join(' ');
 }
 
 // Read-only verbs / patterns: queries + non-mutating generators.
@@ -148,6 +174,13 @@ function classify(name: string): Classification {
   };
 }
 
+/** Human-readable safety-tier label, matching the scaffold's vocabulary. */
+function tierLabel(a: ToolAnnotations): string {
+  if (a.readOnlyHint) return 'read-only';
+  if (a.destructiveHint) return 'mutating-destructive';
+  return 'mutating-safe';
+}
+
 // ---------------------------------------------------------------------------
 // isError wrapping
 // ---------------------------------------------------------------------------
@@ -169,6 +202,20 @@ function streamErrorToToolResult(err: StreamError): CallToolResult {
   };
 }
 
+function unexpectedErrorToToolResult(err: unknown): CallToolResult {
+  // Log the full detail server-side (stderr only - never in a tool result),
+  // then return a redacted, bounded message so a stack trace or any secret a
+  // bug surfaced cannot leak into the model context.
+  const full = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  logger.error(`Unhandled tool error: ${full}`);
+  const message = redactValue(err instanceof Error ? err.message : String(err));
+  return {
+    isError: true,
+    content: [{ type: 'text', text: `Internal error: ${message}` }],
+    structuredContent: { errorCode: 'INTERNAL_ERROR', message },
+  };
+}
+
 function wrapHandler(
   handler: (...args: unknown[]) => ToolResult,
 ): (...args: unknown[]) => Promise<CallToolResult> {
@@ -177,7 +224,7 @@ function wrapHandler(
       return await handler(...args);
     } catch (err) {
       if (err instanceof StreamError) return streamErrorToToolResult(err);
-      throw err;
+      return unexpectedErrorToToolResult(err);
     }
   };
 }
@@ -215,7 +262,7 @@ export function registerTool(
   const wrapErrors = options.wrapErrors ?? true;
   const classification = classify(name);
 
-  const description = wrapDescription
+  const description0 = wrapDescription
     ? buildToolDescription(name, config.description)
     : config.description;
 
@@ -224,6 +271,17 @@ export function registerTool(
     ...config.annotations,
   };
   const title = config.title ?? classification.title;
+
+  // Ensure every tool description ends with a human-readable "Safety tier" line,
+  // derived from the (final, possibly-overridden) annotations. Most tools write
+  // it by hand; this backstops the ~17 hand-written query/lifecycle tools that
+  // omit it, so the vocabulary the server instructions teach is always present.
+  const description =
+    wrapDescription &&
+    typeof description0 === 'string' &&
+    !description0.includes('Safety tier')
+      ? `${description0.trimEnd()}\nSafety tier: ${tierLabel(annotations)}`
+      : description0;
 
   const handler = wrapErrors
     ? wrapHandler(cb as (...args: unknown[]) => ToolResult)

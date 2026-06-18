@@ -46,12 +46,22 @@ const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
  * shape the reads accept). `dn` is also carried over from the GET so a PENDING
  * managed CA (no cert) keeps its mandatory dn; an issued CA's GET has dn=null.
  */
-const STRIP_FIELDS = [
+/**
+ * Server-managed / revocation fields that Stream's `updateFrom` resets on any
+ * full-replace PUT /api/v1/cas. SINGLE SOURCE OF TRUTH for the CA update
+ * contract: both update_ca (here) and assign_ocsp_signer_to_ca
+ * (revocation/signers.ts) strip exactly these. assign_ additionally strips
+ * `certificate`/`altPrivateKey` (it does not round-trip them), whereas update_ca
+ * keeps and PEM-converts the certificate so the body still deserializes.
+ */
+export const CA_SERVER_MANAGED_STRIP_FIELDS = [
   'id',
   'revoked',
   'revocationDate',
   'revocationReason',
 ] as const;
+
+const STRIP_FIELDS = CA_SERVER_MANAGED_STRIP_FIELDS;
 
 const SPEC: ConfigSpec = {
   noun: 'ca',

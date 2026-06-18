@@ -22,5 +22,22 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      // Generated artifacts, pure enum/constant tables, and the stdio bootstrap
+      // (exercised by e2e, not unit) are excluded from the unit-coverage gate.
+      exclude: ['src/generated/**', 'src/**/enums.ts', 'src/index.ts'],
+      reporter: ['text-summary', 'lcov'],
+      // Floors set just below the current measured baseline (statements ~88,
+      // branches ~73, functions ~91, lines ~90) so the gate catches regressions
+      // today; ratchet upward toward 80%+ branches as coverage improves.
+      thresholds: {
+        statements: 85,
+        branches: 70,
+        functions: 85,
+        lines: 85,
+      },
+    },
   },
 });

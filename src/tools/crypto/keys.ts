@@ -21,6 +21,7 @@ import {
   buildListResponse,
   buildMutateResponse,
   encodePathSegment,
+  redactedJson,
 } from '../helpers.js';
 import { registerTool } from '../register.js';
 import { MAX_LIST_ITEMS } from '../_scaffold.js';
@@ -123,7 +124,7 @@ export function registerKeyTools(
       const result = await client.get(
         `${KEYS_ROUTE}/${encodePathSegment(keystore)}/${encodePathSegment(key)}`,
       );
-      return text(JSON.stringify(result));
+      return text(redactedJson(result));
     },
   );
 

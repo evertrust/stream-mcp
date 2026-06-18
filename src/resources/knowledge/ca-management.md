@@ -47,6 +47,8 @@ Duration strings match `^[0-9]+ *(ms|s|m|h|d|second(s)|minute(s)|hour(s)|day(s)|
 | `crlPolicy`           | no          | `{ validity (duration, req), eidas (bool, req), hardGeneration?, lazyGeneration? (cron) }`. **Required for `generate_crl` to work.**                                                               |
 | `triggers`            | no          | `onCRLGeneration`, `onCRLGenerationError`, `onCRLSync`, `onCAExpiration`, ... (each `string[]` of existing trigger names)                                                                          |
 
+**Configure `crldps`, `aia` (incl. `aia.ocsp` — the OCSP responder URL), `policy`, and `ocspSigner` on the CA, then let certificate templates inherit them** via `crldpsFromCA` / `aiaFromCA` / `policyFromCA` (see `stream://knowledge/templates`). Put the revocation/issuer-info wiring here, on the CA, exactly once — not on each template. A single general template then issues correctly under any CA.
+
 `SignerPrivateKey` (`privateKey`/`altPrivateKey`): `keystore` and `name` (key alias) required and must exist. `hashAlgorithm` (e.g. `SHA256`, `SHA384`, `SHA3-384`) — omit for EC/EdDSA. `usePSS` only valid on a PKCS11 RSA key.
 Hybrid rule: when `altPrivateKey` is set, the primary key must be legacy and the alt key must be PQC; `keyType` then reads e.g. `rsa-2048+mldsa-44`.
 

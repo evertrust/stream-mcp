@@ -17,6 +17,7 @@ import {
   buildListResponse,
   buildMutateResponse,
   encodePathSegment,
+  redactedJson,
 } from '../helpers.js';
 import { registerTool } from '../register.js';
 import {
@@ -293,7 +294,7 @@ export function registerCredentialTools(
     },
     async ({ name }) => {
       const result = await client.get(`${ROUTE}/${encodePathSegment(name)}`);
-      return text(JSON.stringify(result));
+      return text(redactedJson(result));
     },
   );
 

@@ -41,6 +41,7 @@ import {
   registerReadTools,
   registerUpdateTool,
 } from '../_scaffold.js';
+import { CA_SERVER_MANAGED_STRIP_FIELDS } from '../x509-ca/cas.js';
 import { HASH_ALGORITHMS } from './enums.js';
 
 const SIGNER_ROUTE = '/api/v1/ocsp/signers';
@@ -70,13 +71,14 @@ const CA_PUT = '/api/v1/cas';
 //   - revoked/revocationDate/revocationReason: server-managed; updateFrom resets
 //     them to None on update.
 //   - id: server-generated (taken from the previous record).
+// Reuse the canonical CA server-managed/revocation strip set (single source of
+// truth in x509-ca/cas.ts) and add the fields this CA-update path does not
+// round-trip: certificate (rich-on-read / write-only PEM, server-restored) and
+// altPrivateKey (server keeps the previous for a certificated CA).
 const CA_STRIP_FIELDS = [
+  ...CA_SERVER_MANAGED_STRIP_FIELDS,
   'certificate',
   'altPrivateKey',
-  'revoked',
-  'revocationDate',
-  'revocationReason',
-  'id',
 ] as const;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });

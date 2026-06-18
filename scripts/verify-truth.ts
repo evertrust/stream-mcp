@@ -3,6 +3,7 @@ import { relative, resolve } from 'node:path';
 import {
   collectMcpPathReferences,
   collectStreamOperations,
+  computeApiCoverage,
   resolveTruthInputs,
   verifyMcpRouteTruth,
   writeTruthArtifacts,
@@ -59,6 +60,27 @@ async function main(): Promise<void> {
     `Allowlisted (unverifiable) references: ${verification.allowlistedCount}`,
   );
   console.log(`Issues: ${verification.issues.length}`);
+
+  // Advisory reverse-coverage report (does not fail the build): Stream /api/v1
+  // routes the MCP does not wrap. Use it to track intentional omissions vs drift.
+  const coverage = computeApiCoverage({ streamOperations, references });
+  console.log(
+    `\nAPI coverage (advisory): ${coverage.covered}/${coverage.total} /api/v1 routes ` +
+      `referenced.`,
+  );
+  if (coverage.uncovered.length > 0) {
+    console.log(
+      `${coverage.uncovered.length} route(s) with no referenced prefix - review ` +
+        `(a genuine gap, or an intentional omission to add to ` +
+        `INTENTIONALLY_UNWRAPPED_PATHS):`,
+    );
+    for (const op of coverage.uncovered.slice(0, 40)) {
+      console.log(`  - ${op.method} ${op.path}`);
+    }
+    if (coverage.uncovered.length > 40) {
+      console.log(`  ... and ${coverage.uncovered.length - 40} more`);
+    }
+  }
 
   if (verification.issues.length > 0) {
     console.error('\nRoute truth verification failed:\n');

@@ -461,7 +461,9 @@ describe('generate_crl', () => {
     const { client, byName } = setup();
     client.get.mockResolvedValue(null); // 204
     await byName('generate_crl').h({ name: 'Root' });
-    expect(client.get).toHaveBeenCalledWith('/api/v1/cas/Root/crl', undefined);
+    expect(client.get).toHaveBeenCalledWith('/api/v1/cas/Root/crl', undefined, {
+      noRetry: true,
+    });
   });
 
   it('GETs :name/crl?lazy=true when lazy=true', async () => {

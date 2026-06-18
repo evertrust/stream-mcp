@@ -305,10 +305,18 @@ export const templateMandatoryShape = {
     .describe('Whether the template is enabled (disabled = not requestable).'),
   crldps_from_ca: z
     .boolean()
-    .describe('crldpsFromCA: inherit CRL DPs from the issuing CA.'),
+    .describe(
+      'crldpsFromCA: inherit CRL Distribution Points from the issuing CA. ' +
+        'Prefer true so one general template works across CAs; set false + an ' +
+        'explicit crldps only to override the CA.',
+    ),
   aia_from_ca: z
     .boolean()
-    .describe('aiaFromCA: inherit AIA from the issuing CA.'),
+    .describe(
+      'aiaFromCA: inherit AIA (CA-issuers URL AND the OCSP responder URL) from ' +
+        'the issuing CA. Prefer true; set false + an explicit aia only to ' +
+        'override the CA.',
+    ),
   policy_from_ca: z
     .boolean()
     .describe(

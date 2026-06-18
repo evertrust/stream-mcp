@@ -25,6 +25,10 @@ import {
 import { registerTool } from '../register.js';
 
 const ROUTE_COLLECTION = '/api/v1/crls';
+// Public distribution endpoints (root-mounted, NOT under /api/v1): the actual
+// published CRL bytes and the AIA-served issuer certificate.
+const PUBLISHED_CRL_ROUTE = '/crls';
+const PUBLISHED_AIA_ROUTE = '/aias';
 const MAX_LIST_ITEMS = 50;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
@@ -88,6 +92,73 @@ export function registerCrlTools(
         `${ROUTE_COLLECTION}/${encodePathSegment(ca)}`,
       );
       return text(JSON.stringify(result));
+    },
+  );
+
+  // get_published_crl: fetch the ACTUAL published CRL bytes from the public
+  // distribution endpoint (GET /crls/:ca), unlike get_crl which returns only
+  // metadata. Lets an agent close a "generate then verify/decode the CRL" loop.
+  registerTool(
+    server,
+    'get_published_crl',
+    {
+      description:
+        "Fetch a CA's PUBLISHED CRL from Stream's public distribution endpoint " +
+        '(GET /crls/:ca). Returns the actual artifact (unlike get_crl, which ' +
+        'returns only metadata): PEM text by default, or base64-encoded DER when ' +
+        'form="DER". This endpoint is unauthenticated/public. Feed the PEM into ' +
+        'decode_crl to inspect entries.\nSafety tier: read-only',
+      inputSchema: z.object({
+        ca: z.string().describe('CA name (the CRL distribution-point key).'),
+        form: z
+          .enum(['PEM', 'DER'])
+          .default('PEM')
+          .describe('PEM text (default) or base64-encoded DER.'),
+      }),
+    },
+    async ({ ca, form }) => {
+      const path = `${PUBLISHED_CRL_ROUTE}/${encodePathSegment(ca)}?form=${form}`;
+      if (form === 'DER') {
+        const buf = await client.getBytes(path, client.exportTimeout);
+        return text(
+          JSON.stringify({
+            ca,
+            form,
+            base64: Buffer.from(buf).toString('base64'),
+          }),
+        );
+      }
+      const pem = await client.getText(
+        path,
+        'application/x-pem-file',
+        client.exportTimeout,
+      );
+      return text(JSON.stringify({ ca, form, pem }));
+    },
+  );
+
+  // get_published_aia: the issuer CA certificate served at the AIA endpoint.
+  registerTool(
+    server,
+    'get_published_aia',
+    {
+      description:
+        "Fetch a CA's issuer certificate from its AIA (Authority Information " +
+        'Access) distribution endpoint (GET /aias/:ca), returned as base64-' +
+        'encoded DER. Unauthenticated/public endpoint. Decode with decode_x509.' +
+        '\nSafety tier: read-only',
+      inputSchema: z.object({
+        ca: z.string().describe('CA name (the AIA distribution-point key).'),
+      }),
+    },
+    async ({ ca }) => {
+      const buf = await client.getBytes(
+        `${PUBLISHED_AIA_ROUTE}/${encodePathSegment(ca)}`,
+        client.exportTimeout,
+      );
+      return text(
+        JSON.stringify({ ca, base64: Buffer.from(buf).toString('base64') }),
+      );
     },
   );
 

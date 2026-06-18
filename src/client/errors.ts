@@ -13,6 +13,10 @@ const SENSITIVE_FIELDS = new Set([
   // proxy) stay visible — they are not secrets.
   'pin',
   'clear',
+  // `secure` is the encrypted/secured half of Stream's `{clear, secure}` secret
+  // object. Redact it alongside `clear` so neither half of a PIN / password /
+  // private key can leak through an error body or a create/update echo.
+  'secure',
   'secretKey',
   'accessKey',
   'pkcs12',
@@ -127,7 +131,14 @@ export function redactValue(s: string): string {
   let scrubbed = s
     .replace(PEM_PRIVATE_KEY_RE, '<redacted-private-key>')
     .replace(JWT_RE, '<redacted-jwt>')
-    .replace(LONG_BASE64_RE, '<redacted-blob>');
+    // Long base64-ish run -> likely a key/secret blob. But a pure-hex run of a
+    // bounded length is almost always an identifier (thumbprint, serial,
+    // request id), not a secret, so keep it readable - redacting it just turns
+    // a useful "thumbprint mismatch" error into noise. Real base64 secrets
+    // contain non-hex characters (g-z, +, /, =).
+    .replace(LONG_BASE64_RE, (m) =>
+      /^[0-9a-fA-F]+$/.test(m) && m.length <= 128 ? m : '<redacted-blob>',
+    );
   if (scrubbed.length > MAX_ERROR_FIELD_LENGTH) {
     scrubbed = scrubbed.slice(0, MAX_ERROR_FIELD_LENGTH) + '... [truncated]';
   }
@@ -137,6 +148,12 @@ export function redactValue(s: string): string {
 function resolveRemediation(errorCode: string | undefined): string | undefined {
   if (!errorCode) return undefined;
   if (errorCode in SPECIFIC_REMEDIATION) return SPECIFIC_REMEDIATION[errorCode];
+  // The numeric-suffix fallback (002=validation, 003=not-found, 004=exists,
+  // 005=referenced) only holds for the CRUD-style config domains. Security/auth
+  // codes (SEC-AUTH-003 "no such identity", SEC-PERM-004, ...) reuse the same
+  // suffixes with different meanings, so a generic hint there is actively
+  // misleading - prefer no hint over a wrong one.
+  if (/^SEC[-A-Z]/.test(errorCode)) return undefined;
   const suffix = errorCode.includes('-') ? errorCode.split('-').pop()! : '';
   return SUFFIX_REMEDIATION[suffix];
 }
@@ -151,16 +168,25 @@ export function parseErrorResponse(
   statusCode: number,
   body: string,
 ): StreamError {
-  let raw: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    raw = body ? (JSON.parse(body) as Record<string, unknown>) : {};
+    parsed = body ? JSON.parse(body) : {};
   } catch {
     return new StreamError(statusCode, {
       message: body ? redactValue(body) : `HTTP ${statusCode}`,
     });
   }
 
-  raw = redactSensitive(raw) as Record<string, unknown>;
+  // Valid JSON, but not the `{ error, message, ... }` object shape Stream uses
+  // (e.g. a bare array of validation strings, or a quoted string from a proxy).
+  // Surface the scrubbed body verbatim rather than mis-reading fields off it.
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return new StreamError(statusCode, {
+      message: body ? redactValue(body) : `HTTP ${statusCode}`,
+    });
+  }
+
+  const raw = redactSensitive(parsed) as Record<string, unknown>;
 
   let errorCode: string | undefined;
   let message: string | undefined;

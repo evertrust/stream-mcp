@@ -29,7 +29,6 @@ export class MtlsAuthProvider extends AuthProvider {
     pfxPassword?: string;
   }) {
     super();
-    this._validate(opts);
     this._connectOptions = this._buildConnectOptions(opts);
   }
 
@@ -45,33 +44,12 @@ export class MtlsAuthProvider extends AuthProvider {
     return this._connectOptions;
   }
 
-  private _validate(opts: {
-    certPath?: string;
-    keyPath?: string;
-    pfxPath?: string;
-  }): void {
-    if (opts.certPath) {
-      try {
-        readFileSync(opts.certPath);
-      } catch {
-        throw new Error(`STREAM_CLIENT_CERT file not found: ${opts.certPath}`);
-      }
-      if (!opts.keyPath) {
-        throw new Error(
-          'STREAM_CLIENT_KEY is required when STREAM_CLIENT_CERT is set.',
-        );
-      }
-      try {
-        readFileSync(opts.keyPath);
-      } catch {
-        throw new Error(`STREAM_CLIENT_KEY file not found: ${opts.keyPath}`);
-      }
-    } else if (opts.pfxPath) {
-      try {
-        readFileSync(opts.pfxPath);
-      } catch {
-        throw new Error(`STREAM_CLIENT_PFX file not found: ${opts.pfxPath}`);
-      }
+  /** Read a credential file once, mapping a read failure to a clear message. */
+  private _readFile(path: string, envVar: string): Buffer {
+    try {
+      return readFileSync(path);
+    } catch {
+      throw new Error(`${envVar} file not found or unreadable: ${path}`);
     }
   }
 
@@ -82,21 +60,30 @@ export class MtlsAuthProvider extends AuthProvider {
     pfxPath?: string;
     pfxPassword?: string;
   }): Agent.Options['connect'] {
-    if (opts.certPath && opts.keyPath) {
+    if (opts.certPath) {
+      if (!opts.keyPath) {
+        throw new Error(
+          'STREAM_CLIENT_KEY is required when STREAM_CLIENT_CERT is set.',
+        );
+      }
+      // Read each file exactly once (existence check + load combined).
+      const cert = this._readFile(opts.certPath, 'STREAM_CLIENT_CERT');
+      const key = this._readFile(opts.keyPath, 'STREAM_CLIENT_KEY');
       logger.info(
         `mTLS: loaded PEM cert=${basename(opts.certPath)} key=${basename(opts.keyPath)}`,
       );
       return {
-        cert: readFileSync(opts.certPath, 'utf-8'),
-        key: readFileSync(opts.keyPath, 'utf-8'),
+        cert: cert.toString('utf-8'),
+        key: key.toString('utf-8'),
         passphrase: opts.keyPassword || undefined,
       };
     }
 
     // PFX path
+    const pfx = this._readFile(opts.pfxPath!, 'STREAM_CLIENT_PFX');
     logger.info(`mTLS: loaded PFX bundle=${basename(opts.pfxPath!)}`);
     return {
-      pfx: readFileSync(opts.pfxPath!),
+      pfx,
       passphrase: opts.pfxPassword || undefined,
     };
   }
