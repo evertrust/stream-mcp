@@ -32,16 +32,11 @@ function scoreEntry(
       idx = hay.indexOf(t, idx + t.length);
     }
   }
-  let snippet = '';
-  if (firstHit !== -1) {
-    const start = Math.max(0, firstHit - 60);
-    snippet = content
-      .slice(start, start + SNIPPET_LEN)
-      .replace(/\s+/g, ' ')
-      .trim();
-  } else {
-    snippet = content.slice(0, SNIPPET_LEN).replace(/\s+/g, ' ').trim();
-  }
+  const start = firstHit !== -1 ? Math.max(0, firstHit - 60) : 0;
+  const snippet = content
+    .slice(start, start + SNIPPET_LEN)
+    .replace(/\s+/g, ' ')
+    .trim();
   return { score, snippet };
 }
 
