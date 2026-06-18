@@ -4,9 +4,19 @@
   "description": "MCP server for Evertrust Stream 2.1 (PKI: CA, VA/OCSP, TSA, SSH)",
   "license": "Apache-2.0",
   "type": "module",
-  "bin": { "stream-mcp": "dist/index.js" },
-  "files": ["dist"],
-  "engines": { "node": ">=24.10" },
+  "bin": {
+    "stream-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24.10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup",
