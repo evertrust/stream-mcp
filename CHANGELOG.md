@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/evertrust/stream-mcp/compare/v1.0.0...v1.0.1) (2026-06-18)
+
+### Bug Fixes
+
+* add repository metadata so the npm provenance publish succeeds ([#6](https://github.com/evertrust/stream-mcp/issues/6)) ([ed46a44](https://github.com/evertrust/stream-mcp/commit/ed46a4426d04677800c2d8c405967ba9c41495d4))
+
 ## 1.0.0 (2026-06-18)
 
 ### Features
