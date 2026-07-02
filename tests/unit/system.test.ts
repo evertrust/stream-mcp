@@ -188,7 +188,8 @@ describe('proxies', () => {
       port: 8080,
     });
     expect(client.post).not.toHaveBeenCalled();
-    expect(json(res).error).toBe('INVALID_HOST');
+    expect(res.isError).toBe(true);
+    expect(payload(res)).toMatch(/INVALID_HOST/);
   });
 
   it('create accepts an IPv4 host', async () => {
@@ -302,7 +303,8 @@ describe('queues', () => {
       throttle_duration: '1 second',
     });
     expect(client.post).not.toHaveBeenCalled();
-    expect(json(res).error).toBe('THROTTLE_PARALLELISM_REQUIRED');
+    expect(res.isError).toBe(true);
+    expect(payload(res)).toMatch(/THROTTLE_PARALLELISM_REQUIRED/);
   });
 
   it('create rejects a malformed throttle_duration', async () => {
@@ -315,7 +317,8 @@ describe('queues', () => {
       throttle_parallelism: 5,
     });
     expect(client.post).not.toHaveBeenCalled();
-    expect(json(res).error).toBe('INVALID_THROTTLE_DURATION');
+    expect(res.isError).toBe(true);
+    expect(payload(res)).toMatch(/INVALID_THROTTLE_DURATION/);
   });
 
   it('update maps camelCase overrides and strips id on PUT to collection root', async () => {
@@ -410,6 +413,27 @@ describe('license, dictionaries, export', () => {
       120000,
     );
     expect(payload(res)).toContain('Cookbook');
+  });
+
+  it('export_configuration caps output and emits a continuation hint', async () => {
+    const { tools, client } = setup();
+    const big = 'A'.repeat(70_000);
+    client.getText.mockResolvedValue(big);
+    const res = await tool(tools, 'export_configuration').handler({});
+    const body = payload(res);
+    // Default cap is 60k chars + a trailing truncation/continuation marker.
+    expect(body.length).toBeLessThan(70_000);
+    expect(body).toContain('<truncated');
+    expect(body).toContain('offset=60000');
+  });
+
+  it('export_configuration continues from offset', async () => {
+    const { tools, client } = setup();
+    client.getText.mockResolvedValue('HEADtail');
+    const res = await tool(tools, 'export_configuration').handler({
+      offset: 4,
+    });
+    expect(payload(res)).toBe('tail');
   });
 
   it('export_configuration adds ?withTrustChains=true when requested', async () => {

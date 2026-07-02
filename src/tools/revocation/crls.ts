@@ -115,7 +115,9 @@ export function registerCrlTools(
       }),
     },
     async ({ ca, form }) => {
-      const path = `${PUBLISHED_CRL_ROUTE}/${encodePathSegment(ca)}?form=${form}`;
+      // Stream's CRL `form` values are lowercase ("pem" | "der"); uppercase is
+      // rejected with a 400 enum-parse error.
+      const path = `${PUBLISHED_CRL_ROUTE}/${encodePathSegment(ca)}?form=${(form ?? 'PEM').toLowerCase()}`;
       if (form === 'DER') {
         const buf = await client.getBytes(path, client.exportTimeout);
         return text(

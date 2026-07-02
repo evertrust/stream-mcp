@@ -210,6 +210,9 @@ describe('registerX509TemplateTools', () => {
       ku: { critical: true, values: [] },
     });
     expect(empty.content[0].text).toMatch(/at least one Key Usage value/);
+    // Validation failures are tool EXECUTION errors (isError), not plain
+    // results the model could mistake for success (MCP SEP-1303).
+    expect(empty.isError).toBe(true);
     expect(client.post).not.toHaveBeenCalled();
   });
 
@@ -285,7 +288,10 @@ describe('registerX509TemplateTools', () => {
       clear_fields: ['id'],
     });
     expect(res.isError).toBe(true);
-    expect(res.structuredContent.errorCode).toBe('CONFIG-CLEAR-FORBIDDEN');
+    // Error results carry NO structuredContent (strict SDK clients validate
+    // any structuredContent against outputSchema even when isError).
+    expect(res.structuredContent).toBeUndefined();
+    expect(res.content[0].text).toContain('CONFIG-CLEAR-FORBIDDEN');
     expect(client.put).not.toHaveBeenCalled();
   });
 
@@ -296,7 +302,8 @@ describe('registerX509TemplateTools', () => {
       expected_name: 'WRONG',
     });
     expect(res.isError).toBe(true);
-    expect(res.structuredContent.errorCode).toBe('SAFETY-ECHO');
+    expect(res.structuredContent).toBeUndefined();
+    expect(res.content[0].text).toContain('SAFETY-ECHO');
     expect(client.delete).not.toHaveBeenCalled();
   });
 

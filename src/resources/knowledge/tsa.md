@@ -9,7 +9,7 @@ The 16 tools:
 ## Universal rules
 
 - **`name` is the immutable primary key** for every object type. It is the path key for get/delete and the body key for create/update. There is no rename — to "rename" you delete and recreate.
-- **Updates are full-replace.** The update tools take the whole object; the server overwrites the stored record with your body (the only thing it preserves is the server-managed `id`). Always GET first, strip read-only fields, merge your change, then update. Never send a partial body.
+- **Updates are full-replace at the API, merged by the tools.** The server overwrites the stored record with the PUT body (preserving only the server-managed `id`), but the MCP `update_*` tools GET the current record and merge your changes before the PUT: pass only the fields you want to change; omitted fields keep their current values (use `clear_fields` to null one).
 - **Lists return empty when there is nothing** (the API answers 204; the tool surfaces an empty list). An empty `list_*` result means no objects, not an error.
 - `id` is server-managed (ObjectId hex, response-only). Any `id` you send is ignored.
 - Reference order matters: a signer and its NTP clients must exist **before** the authority that names them; an authority must be deleted (or repointed) **before** the signer/NTP client it references.

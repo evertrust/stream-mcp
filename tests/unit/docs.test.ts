@@ -72,10 +72,12 @@ describe('docs tools', () => {
     expect(byUri.content[0].text.length).toBeGreaterThan(100);
   });
 
-  it('get_doc reports available topics for an unknown URI', async () => {
+  it('get_doc surfaces an unknown URI as an isError result with topics', async () => {
     const { invoke } = setup();
-    const out = parse(await invoke('get_doc', { uri: 'nope' }));
-    expect(out.error).toContain('Unknown doc URI');
-    expect(out.available_topics).toContain('stream://knowledge/');
+    const out = await invoke('get_doc', { uri: 'nope' });
+    // A miss is a tool execution error, not content a model could trust.
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toContain('Unknown doc URI');
+    expect(out.content[0].text).toContain('stream://knowledge/');
   });
 });

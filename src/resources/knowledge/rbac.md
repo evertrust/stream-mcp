@@ -24,7 +24,7 @@ Two families:
 
 ## Roles
 
-Tools: `list_roles`, `get_role`, `create_role`, `update_role`, `delete_role`. A role is `{ name, description?, permissions[] }`; `name` is the immutable key. `update_role` is full-replace — omitted optional fields are reset; resend the full `permissions` list. `delete_role` also removes the role from every principal info that referenced it.
+Tools: `list_roles`, `get_role`, `create_role`, `update_role`, `delete_role`. A role is `{ name, description?, permissions[] }`; `name` is the immutable key. `update_role` merges — omitted fields keep their current values; note that passing `permissions` replaces the ENTIRE list (send the full desired list, not a delta). `delete_role` also removes the role from every principal info that referenced it.
 
 ```jsonc
 // create_role

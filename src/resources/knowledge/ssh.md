@@ -4,7 +4,7 @@ Auth is local account (`X-API-ID`/`X-API-KEY`/`X-API-IDPROV`) or X509/mTLS — t
 
 Two recurring conventions:
 
-- Object `name` is the immutable primary key. Updates are full-replace via PUT on the collection root (the body's `name` selects the object; the server forces `id = previous.id` and ignores client `id`). To edit safely: GET the object, modify, PUT it back whole.
+- Object `name` is the immutable primary key. At the API, updates are full-replace via PUT on the collection root (the body's `name` selects the object; the server forces `id = previous.id` and ignores client `id`). The MCP `update_*` tools merge for you: pass only the fields you change; omitted fields keep their current values (use `clear_fields` to null one).
 - List endpoints return HTTP 204 (no body) when empty or when you lack audit permission — treat 204 as an empty list, not an error.
 
 The SSH search/aggregate DSL is **SCQL** (SSH dialect). This is the only query language for SSH certificates. There is no other SSH query language.

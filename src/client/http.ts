@@ -143,8 +143,15 @@ export interface RequestOptions<T = unknown> {
 
 export interface MultipartPart {
   fieldName: string;
-  filename: string;
-  mimeType: string;
+  /**
+   * Present -> uploaded as a FILE part. Absent -> sent as a plain DATA field.
+   * The server distinguishes the two: a text value (e.g. the PKCS#12
+   * password, a CRL nextRefresh instant) sent as a file part is NOT read as a
+   * form field (extract_pkcs12 failed RFC5280-004 until the password became a
+   * plain field).
+   */
+  filename?: string;
+  mimeType?: string;
   data: Buffer | string;
 }
 
@@ -342,11 +349,19 @@ export class StreamClient {
   ): Promise<T> {
     const formData = new UndiciFormData();
     for (const part of parts) {
+      if (part.filename === undefined) {
+        // Plain data field (no filename) - the server reads these as form
+        // fields, not file parts.
+        formData.append(part.fieldName, String(part.data));
+        continue;
+      }
       const blobPart =
         typeof part.data === 'string'
           ? part.data
           : Uint8Array.from(part.data).buffer;
-      const blob = new Blob([blobPart], { type: part.mimeType });
+      const blob = new Blob([blobPart], {
+        type: part.mimeType ?? 'application/octet-stream',
+      });
       formData.append(part.fieldName, blob, part.filename);
     }
 

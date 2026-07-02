@@ -134,11 +134,39 @@ describe('server integration', () => {
       'Safety tier: read-only',
     );
     expect(byName.get('revoke_certificate')?.description).toContain(
-      'Safety tier: mutating-destructive',
+      'Safety tier: destructive',
     );
     expect(byName.get('enroll_certificate')?.description).toContain(
-      'Safety tier: mutating-safe',
+      'Safety tier: additive',
     );
+    // The tier line is authoritative (derived from annotations): exactly one
+    // occurrence per tool, and only the docs vocabulary appears.
+    for (const t of tools) {
+      const matches = (t.description ?? '').match(/Safety tier: ([^\n]*)/g);
+      expect(matches?.length, t.name).toBe(1);
+      expect(matches![0], t.name).toMatch(
+        /^Safety tier: (read-only|idempotent|additive|destructive|open-world)$/,
+      );
+    }
+  });
+
+  it('scaffold CRUD tools declare structured output schemas', async () => {
+    const tools = await bootAndListTools();
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    for (const name of ['create_role', 'update_role', 'delete_role']) {
+      const schema = byName.get(name)?.outputSchema as
+        | { properties?: Record<string, unknown> }
+        | undefined;
+      expect(schema?.properties, `${name} missing outputSchema`).toBeDefined();
+    }
+    expect(
+      (byName.get('create_role')?.outputSchema as { properties: object })
+        .properties,
+    ).toHaveProperty('status');
+    expect(
+      (byName.get('delete_role')?.outputSchema as { properties: object })
+        .properties,
+    ).toHaveProperty('deleted');
   });
 
   it('classifies prefix edge cases correctly', async () => {
@@ -155,10 +183,14 @@ describe('server integration', () => {
     // migrate_* is one-way (repeat -> error) -> additive, NOT idempotent.
     expect(ann('migrate_ca')?.idempotentHint).toBe(false);
     expect(ann('migrate_ca')?.readOnlyHint).toBe(false);
-    // reset_* mints fresh state each call -> additive, NOT idempotent.
+    // reset_* irreversibly replaces the old secret -> destructive, NOT idempotent.
     expect(ann('reset_local_identity_password')?.idempotentHint).toBe(false);
-    // enroll_* creates a new certificate -> additive, open-world, not read-only.
+    expect(ann('reset_local_identity_password')?.destructiveHint).toBe(true);
+    // enroll_* creates a new certificate -> additive, not read-only. It talks
+    // to the closed Stream API only -> NOT open-world (per MCP spec semantics).
     expect(ann('enroll_certificate')?.readOnlyHint).toBe(false);
-    expect(ann('enroll_certificate')?.openWorldHint).toBe(true);
+    expect(ann('enroll_certificate')?.openWorldHint).toBe(false);
+    // test_trigger REST mode makes Stream call an arbitrary external URL.
+    expect(ann('test_trigger')?.openWorldHint).toBe(true);
   });
 });

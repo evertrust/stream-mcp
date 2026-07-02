@@ -8,18 +8,22 @@ Every Stream object is keyed by its `name` (CAs, templates, keystores, keys, cre
 - Object identifiers passed to other tools (`ca`, `template_name`, `keystore`, `key`, `serial`) are key references — they must match an existing object exactly. Unknown name → `404` (e.g. `CA-003`, `KEYSTORE-003`, `KEY-003`).
 - A bad name on create fails validation, e.g. `KEYSTORE-002` (name regex `[0-9a-zA-Z-_.]+`); a duplicate fails, e.g. `KEYSTORE-004`, `KEY-004`.
 
-## 2. Updates are full-replace: GET → strip → merge → PUT
+## 2. Updates merge for you — pass only the fields you change
 
-Stream update endpoints PUT the **entire object** onto the collection root, keyed by the body's `name` (no path param). There is no PATCH. **Omitted optional fields are reset** — a partial body silently wipes whatever you left out.
+The raw Stream API has no PATCH: its update endpoints PUT the **entire object** onto the collection root, keyed by the body's `name` (no path param), and a partial body would wipe whatever it omits. The MCP `update_*` tools shield you from that: internally they GET the current object, strip server-managed fields, merge YOUR changes, and PUT the whole thing back.
 
-Always:
+What that means when you call `update_*`:
 
-1. `get_*` (or `list_*`) the current object.
-2. Strip server-computed / read-only fields (`status`, `id`).
-3. Merge your one change into the full object.
-4. Send the whole thing back via the matching `update_*` tool.
+- **Pass only the fields you want to change.** Any field you omit KEEPS its current value — the tool re-sends it from the existing record.
+- To explicitly null an optional field, use the tool's `clear_fields` parameter (immutable and server-managed fields are rejected).
+- Still `get_*` first when you need the current state to decide what to change — but you do NOT need to echo the full body back.
 
-Tools with this contract include `update_keystore`, `update_ca`, `update_credential`, `update_eku`, `update_identity_provider`, `update_principal_info`, `update_trigger`, `upsert_system_configuration`.
+Merging tools include `update_keystore`, `update_ca`, `update_credential`, `update_eku`, `update_identity_provider`, `update_principal_info`, and the other scaffold `update_*` tools.
+
+**Exceptions — these ARE full-replace, omitted fields are cleared:**
+
+- `update_trigger` — supply the COMPLETE trigger object (all per-type mandatory fields); anything you omit is reset. There is no `clear_fields` here.
+- `upsert_system_configuration` — the body you supply fully replaces (or creates) the entry for that `type`.
 
 Server overrides to know:
 

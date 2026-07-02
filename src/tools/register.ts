@@ -44,9 +44,13 @@ export interface RegisterToolOptions {
 // ---------------------------------------------------------------------------
 //
 // readOnlyHint    -> true for queries and non-mutating generators (CSR, decode).
-// destructiveHint -> true for delete/remove/revoke.
-// idempotentHint  -> true for updates/upserts/assign/reset/migrate that converge.
-// openWorldHint   -> true for anything that mutates or reaches Stream's network.
+// destructiveHint -> true for delete/remove/revoke/reset (irreversible).
+// idempotentHint  -> true for updates/upserts/assign that converge.
+// openWorldHint   -> false everywhere by default: every tool talks to the SAME
+//                    closed Stream API, which is not an "open domain of
+//                    external entities" (MCP spec meaning). Tools that DO
+//                    reach beyond it (HSM native-library load, trigger test
+//                    calls to arbitrary URLs) opt in via per-tool overrides.
 
 interface Classification {
   readonly annotations: ToolAnnotations;
@@ -130,24 +134,25 @@ function classify(name: string): Classification {
     };
   }
 
-  // Destructive mutations
-  if (/^(delete|remove)_/.test(name) || /^revoke_/.test(name)) {
+  // Destructive mutations. reset_* irreversibly replaces existing state (the
+  // old password is destroyed and cannot be recovered), so it is destructive
+  // AND non-idempotent (a fresh secret is minted on every call).
+  if (/^(delete|remove|revoke|reset)_/.test(name)) {
     return {
       annotations: {
         title,
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
       },
       title,
     };
   }
 
   // Idempotent mutations (converge to the same state).
-  // NB: migrate_* is one-way (repeat -> CA-009) and reset_* mints fresh state
-  // (new password) each call, so neither is idempotent - they fall through to
-  // the additive branch below.
+  // NB: migrate_* is one-way (repeat -> CA-009), so it is not idempotent -
+  // it falls through to the additive branch below.
   if (/^(update|set|upsert|assign)_/.test(name)) {
     return {
       annotations: {
@@ -155,7 +160,7 @@ function classify(name: string): Classification {
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
       },
       title,
     };
@@ -168,17 +173,24 @@ function classify(name: string): Classification {
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     title,
   };
 }
 
-/** Human-readable safety-tier label, matching the scaffold's vocabulary. */
+/**
+ * Human-readable safety-tier label, aligned with the vocabulary the README
+ * and docs/tools-reference.md teach: read-only / idempotent / additive /
+ * destructive (+ open-world for the explicit per-tool overrides that reach
+ * beyond the Stream API).
+ */
 function tierLabel(a: ToolAnnotations): string {
   if (a.readOnlyHint) return 'read-only';
-  if (a.destructiveHint) return 'mutating-destructive';
-  return 'mutating-safe';
+  if (a.destructiveHint) return 'destructive';
+  if (a.openWorldHint) return 'open-world';
+  if (a.idempotentHint) return 'idempotent';
+  return 'additive';
 }
 
 // ---------------------------------------------------------------------------
@@ -186,19 +198,15 @@ function tierLabel(a: ToolAnnotations): string {
 // ---------------------------------------------------------------------------
 
 function streamErrorToToolResult(err: StreamError): CallToolResult {
-  const structured: Record<string, unknown> = {
-    errorCode: err.errorCode ?? null,
-    statusCode: err.statusCode,
-    message: err.message,
-  };
-  if (err.detail !== undefined) structured['detail'] = err.detail;
-  if (err.remediation !== undefined)
-    structured['remediation'] = err.remediation;
-
+  // NO structuredContent on error results: the official SDK client validates
+  // any structuredContent it finds against the tool's outputSchema EVEN when
+  // isError is true (client/index.js callTool), so an error envelope on a
+  // tool with an outputSchema would make strict clients throw -32602 instead
+  // of surfacing the error text. All error detail lives in the text (code,
+  // detail, remediation are formatted into err.toToolResult()).
   return {
     isError: true,
     content: [{ type: 'text', text: err.toToolResult() }],
-    structuredContent: structured,
   };
 }
 
@@ -209,10 +217,10 @@ function unexpectedErrorToToolResult(err: unknown): CallToolResult {
   const full = err instanceof Error ? (err.stack ?? err.message) : String(err);
   logger.error(`Unhandled tool error: ${full}`);
   const message = redactValue(err instanceof Error ? err.message : String(err));
+  // No structuredContent on errors - see streamErrorToToolResult.
   return {
     isError: true,
     content: [{ type: 'text', text: `Internal error: ${message}` }],
-    structuredContent: { errorCode: 'INTERNAL_ERROR', message },
   };
 }
 
@@ -272,15 +280,13 @@ export function registerTool(
   };
   const title = config.title ?? classification.title;
 
-  // Ensure every tool description ends with a human-readable "Safety tier" line,
-  // derived from the (final, possibly-overridden) annotations. Most tools write
-  // it by hand; this backstops the ~17 hand-written query/lifecycle tools that
-  // omit it, so the vocabulary the server instructions teach is always present.
+  // The "Safety tier" line is AUTHORITATIVE here: any hand-written variant is
+  // stripped and re-derived from the (final, possibly-overridden) annotations,
+  // so the label can never drift from the annotations or from the vocabulary
+  // the README/docs teach.
   const description =
-    wrapDescription &&
-    typeof description0 === 'string' &&
-    !description0.includes('Safety tier')
-      ? `${description0.trimEnd()}\nSafety tier: ${tierLabel(annotations)}`
+    wrapDescription && typeof description0 === 'string'
+      ? `${description0.replace(/\n?Safety tier: [^\n]*/g, '').trimEnd()}\nSafety tier: ${tierLabel(annotations)}`
       : description0;
 
   const handler = wrapErrors

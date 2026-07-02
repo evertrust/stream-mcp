@@ -18,6 +18,12 @@ import { registerTool } from '../register.js';
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
+// export_configuration output budget: the AsciiDoc export of a populated
+// instance can approach the 10 MiB transport cap, which would flood the model
+// context in one call. Cap per call and let the caller page with `offset`.
+const EXPORT_DEFAULT_MAX_CHARS = 60_000;
+const EXPORT_MAX_MAX_CHARS = 200_000;
+
 export function registerSystemInfoTools(
   server: McpServer,
   client: StreamClient,
@@ -108,6 +114,7 @@ export function registerSystemInfoTools(
       description:
         'Export the full Stream configuration as an AsciiDoc ("adoc") cookbook document (text/plain, NOT JSON). ' +
         'Optionally include CA trust-chain diagrams. Only sections you can AUDIT are included; if you can audit nothing the body is empty.\n' +
+        `Output is capped at max_chars (default ${EXPORT_DEFAULT_MAX_CHARS}) per call; a truncation marker gives the offset to pass for the next chunk.\n` +
         'Safety tier: read-only',
       inputSchema: z.object({
         with_trust_chains: z
@@ -116,9 +123,30 @@ export function registerSystemInfoTools(
           .describe(
             'When true, prepend a Trust Chains section with Graphviz/DOT digraphs of CA trust chains. Default false.',
           ),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .default(0)
+          .describe(
+            'Character offset to continue a previous, truncated export from.',
+          ),
+        max_chars: z
+          .number()
+          .int()
+          .min(1)
+          .max(EXPORT_MAX_MAX_CHARS)
+          .default(EXPORT_DEFAULT_MAX_CHARS)
+          .describe(
+            `Maximum characters returned per call (default ${EXPORT_DEFAULT_MAX_CHARS}, ` +
+              `max ${EXPORT_MAX_MAX_CHARS}).`,
+          ),
       }),
     },
-    async ({ with_trust_chains }) => {
+    async ({ with_trust_chains, offset, max_chars }) => {
+      // Defensive defaults: schema defaults only apply via SDK-side parsing.
+      const start = offset ?? 0;
+      const cap = max_chars ?? EXPORT_DEFAULT_MAX_CHARS;
       const path = with_trust_chains
         ? '/api/v1/adoc?withTrustChains=true'
         : '/api/v1/adoc';
@@ -128,7 +156,22 @@ export function registerSystemInfoTools(
         'text/plain',
         client.exportTimeout,
       );
-      return text(adoc);
+      const total = adoc.length;
+      if (start >= total && total > 0) {
+        return text(
+          `<offset ${start} is beyond the document end (${total} chars). ` +
+            'Restart with offset=0.>',
+        );
+      }
+      const end = Math.min(start + cap, total);
+      const slice = adoc.slice(start, end);
+      if (end < total) {
+        return text(
+          `${slice}\n\n<truncated: showing chars ${start}-${end} of ${total}. ` +
+            `Call export_configuration again with offset=${end} for the next chunk.>`,
+        );
+      }
+      return text(slice);
     },
   );
 }

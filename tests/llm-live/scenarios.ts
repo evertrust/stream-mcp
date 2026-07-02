@@ -27,8 +27,13 @@ export const LIVE_SCENARIOS: readonly LiveScenario[] = [
     id: 'whoami',
     question: 'Who am I in Stream and what roles and permissions do I have?',
     acceptablePrimaryTools: ['whoami'],
-    // Usable-output proof: the answer must name the authenticated account.
-    expectInAnswer: ['mcp-service'],
+    // Usable-output proof: the answer must name the authenticated account
+    // (derived from the same env the runner authenticates with, so credential
+    // rotation cannot silently break the scenario). The suite skips when
+    // STREAM_E2E_API_ID is unset.
+    expectInAnswer: process.env['STREAM_E2E_API_ID']
+      ? [process.env['STREAM_E2E_API_ID']]
+      : [],
   },
   {
     id: 'list-cas',

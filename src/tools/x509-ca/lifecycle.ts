@@ -9,7 +9,7 @@
  */
 import { z } from 'zod';
 
-import type { StreamClient } from '../../client/http.js';
+import type { MultipartPart, StreamClient } from '../../client/http.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamError } from '../../client/errors.js';
 import { buildMutateResponse, encodePathSegment } from '../helpers.js';
@@ -318,7 +318,7 @@ export function registerCaLifecycleTools(
         data = crl;
         mimeType = 'application/x-pem-file';
       }
-      const parts = [
+      const parts: MultipartPart[] = [
         {
           fieldName: 'crl',
           filename: crl_filename ?? 'crl.crl',
@@ -327,12 +327,8 @@ export function registerCaLifecycleTools(
         },
       ];
       if (next_refresh !== undefined) {
-        parts.push({
-          fieldName: 'nextRefresh',
-          filename: 'nextRefresh',
-          mimeType: 'text/plain',
-          data: next_refresh,
-        });
+        // Plain data field (NOT a file part - see MultipartPart.filename).
+        parts.push({ fieldName: 'nextRefresh', data: next_refresh });
       }
       await client.postMultipart(caPath(name, '/crl'), parts);
       return text(

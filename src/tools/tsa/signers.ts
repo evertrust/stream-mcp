@@ -66,8 +66,10 @@ const privateKeyShape = z.object({
     .enum(HASH_ALGORITHMS)
     .optional()
     .describe(
-      'Signing hash algorithm (optional; EC curves may sign without one). The ' +
-        'server may normalize this to match the key/certificate.',
+      'Signing hash algorithm. REQUIRED by the server on create for RSA ' +
+        'keys (400 "Missing hash algorithm" otherwise); EC ' +
+        'curves may sign without one. The server may normalize this to match ' +
+        'the key/certificate.',
     ),
   use_pss: z
     .boolean()

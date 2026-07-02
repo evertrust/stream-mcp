@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { StreamError } from '../../client/errors.js';
 import type { StreamClient } from '../../client/http.js';
+import { getLogger } from '../../logging.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   buildListResponse,
@@ -46,10 +47,24 @@ const HSM_ANNOTATIONS = {
  * Optional allowlist for HSM library paths. When STREAM_HSM_LIBRARY_ALLOWLIST is
  * set (comma-separated absolute paths), only those libraries may be loaded;
  * otherwise the caller-supplied path is forwarded (Stream remains the authority).
+ * STRONGLY RECOMMENDED in production: without it, any caller-supplied path is
+ * forwarded to Stream, which loads it as native code.
  */
+let warnedNoAllowlist = false;
+
 function assertAllowedHsmLibrary(library: string): void {
   const raw = process.env['STREAM_HSM_LIBRARY_ALLOWLIST'];
-  if (!raw || !raw.trim()) return;
+  if (!raw || !raw.trim()) {
+    if (!warnedNoAllowlist) {
+      warnedNoAllowlist = true;
+      getLogger('stream_mcp.tools.crypto').warning(
+        'STREAM_HSM_LIBRARY_ALLOWLIST is not set: forwarding caller-supplied ' +
+          `PKCS#11 library path "${library}" to Stream unchecked. Configure ` +
+          'the allowlist in production - Stream loads this path as native code.',
+      );
+    }
+    return;
+  }
   const allow = raw
     .split(',')
     .map((s) => s.trim())

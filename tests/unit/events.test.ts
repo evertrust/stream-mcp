@@ -106,6 +106,14 @@ describe('search_events', () => {
     expect(payload).not.toHaveProperty('withCount');
   });
 
+  it('accepts the string form of sorted_by (unified across search tools)', async () => {
+    const { client, tool } = setup();
+    client.post.mockResolvedValue({ results: [] });
+    await tool('search_events').h({ sorted_by: 'timestamp:desc' });
+    const payload = client.post.mock.calls[0][1];
+    expect(payload.sortedBy).toEqual([{ element: 'timestamp', order: 'Desc' }]);
+  });
+
   it('rejects an invalid sort element via the input schema enum', () => {
     const { tool } = setup();
     const schema = tool('search_events').c.inputSchema;
