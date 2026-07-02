@@ -41,7 +41,9 @@ export const signerPrivateKeySchema = z
       .enum(HASH_ALGORITHMS)
       .optional()
       .describe(
-        `Optional. Signature hash; one of ${HASH_ALGORITHMS.join(' | ')}. Omit for EC/EdDSA keys.`,
+        `Signature hash; one of ${HASH_ALGORITHMS.join(' | ')}. ` +
+          'REQUIRED by the server on create for RSA keys (400 "Missing hash ' +
+          'algorithm" otherwise - verified live); omit only for EC/EdDSA keys.',
       ),
     usePSS: z
       .boolean()

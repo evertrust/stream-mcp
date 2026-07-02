@@ -39,8 +39,25 @@ function filePart(
     fieldName,
     filename,
     mimeType: 'application/octet-stream',
-    data: content,
+    data: base64DerToBytes(content) ?? content,
   };
+}
+
+/**
+ * Detect base64-encoded DER and decode it to raw bytes. Stream parses the
+ * uploaded bytes directly and does NOT base64-decode them (verified live:
+ * sending the base64 TEXT of a binary PKCS#12 fails with RFC5280-004
+ * "Invalid PKCS#12"). Only strict base64 that decodes to an ASN.1 SEQUENCE
+ * (0x30 - DER certs/CSRs/CRLs/PKCS#12 all start with one) is converted;
+ * PEM, OpenSSH public keys, and anything else stays text.
+ */
+function base64DerToBytes(content: string): Buffer | undefined {
+  const compact = content.replace(/\s+/g, '');
+  if (compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) {
+    return undefined;
+  }
+  const bytes = Buffer.from(compact, 'base64');
+  return bytes.length > 0 && bytes[0] === 0x30 ? bytes : undefined;
 }
 
 const contentField = z
@@ -170,12 +187,8 @@ export function registerDecoderTools(
         '/api/v1/rfc5280/pkcs12',
         [
           filePart('pkcs12', content, 'keystore.p12'),
-          {
-            fieldName: 'password',
-            filename: 'password',
-            mimeType: 'text/plain',
-            data: password,
-          },
+          // Plain data field (NOT a file part - see MultipartPart.filename).
+          { fieldName: 'password', data: password },
         ],
         'application/json',
       );

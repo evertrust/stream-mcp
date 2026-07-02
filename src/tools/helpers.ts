@@ -95,10 +95,14 @@ export function buildListResponse(
   const total = items.length;
   // Redact secret-bearing fields on read symmetrically with the write path
   // (buildMutateResponse). redactSensitive only touches the known secret-field
-  // set; reference names (keystore, credentials, ...) stay visible.
+  // set; reference names (keystore, credentials, ...) stay visible. Then
+  // apply the same field-level truncation as search responses so heavy items
+  // (e.g. decoded CA certificates/chains) cannot flood the context.
   const sliced = items
     .slice(0, maxItems)
-    .map((item) => redactSensitive(item) as Record<string, unknown>);
+    .map((item) =>
+      truncateRecord(redactSensitive(item) as Record<string, unknown>),
+    );
   return JSON.stringify({
     items: sliced,
     count: sliced.length,
@@ -117,7 +121,7 @@ export function redactedJson(value: unknown): string {
   return JSON.stringify(redactSensitive(value));
 }
 
-export function buildMutateResponse(opts: {
+export interface MutateResponseOptions {
   action: string;
   kind: string;
   name: string;
@@ -130,7 +134,15 @@ export function buildMutateResponse(opts: {
    * never include tool-result bodies, so these stay out of logs.
    */
   reveal?: readonly string[];
-}): string {
+}
+
+/**
+ * Build the mutate envelope as an OBJECT (for structuredContent alongside
+ * MUTATE_RESPONSE_OUTPUT_SCHEMA). buildMutateResponse is the string form.
+ */
+export function buildMutateResult(
+  opts: MutateResponseOptions,
+): Record<string, unknown> {
   const response: Record<string, unknown> = {
     status: opts.action,
     kind: opts.kind,
@@ -150,7 +162,11 @@ export function buildMutateResponse(opts: {
   if (opts.warnings && opts.warnings.length > 0) {
     response['warnings'] = opts.warnings;
   }
-  return JSON.stringify(response);
+  return response;
+}
+
+export function buildMutateResponse(opts: MutateResponseOptions): string {
+  return JSON.stringify(buildMutateResult(opts));
 }
 
 // ---------------------------------------------------------------------------
@@ -158,10 +174,13 @@ export function buildMutateResponse(opts: {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a "field:order" string into Stream's sortedBy element.
+ * Normalize a sort specification into Stream's sortedBy element list.
+ * Accepts BOTH input shapes every search tool exposes:
+ *   - the compact string form `"field:order"` (single element), and
+ *   - the wire-shaped array form `[{ element, order }, ...]`.
  * Stream's SortOrder is a case-sensitive enum: Asc | Desc | KeyAsc | KeyDesc
  * (an uppercase "ASC"/"DESC" is rejected with error.expected.validenumvalue).
- * The order suffix is matched case-insensitively and normalized; default Asc.
+ * Orders are matched case-insensitively and normalized; default Asc.
  */
 const SORT_ORDERS: Record<string, string> = {
   asc: 'Asc',
@@ -170,11 +189,24 @@ const SORT_ORDERS: Record<string, string> = {
   keydesc: 'KeyDesc',
 };
 
+export type SortedByInput =
+  | string
+  | ReadonlyArray<{ element: string; order: string }>;
+
 export function buildSortedBy(
-  sortedBy?: string,
+  sortedBy?: SortedByInput,
 ): Array<{ element: string; order: string }> | undefined {
   if (!sortedBy) return undefined;
-  const [rawElement, rawOrder] = sortedBy.split(':', 2);
+  if (Array.isArray(sortedBy)) {
+    const elements = sortedBy
+      .map(({ element, order }) => ({
+        element: element.trim(),
+        order: SORT_ORDERS[order.trim().toLowerCase()] ?? 'Asc',
+      }))
+      .filter((e) => e.element);
+    return elements.length > 0 ? elements : undefined;
+  }
+  const [rawElement, rawOrder] = (sortedBy as string).split(':', 2);
   const element = (rawElement ?? '').trim();
   if (!element) return undefined;
   const order = SORT_ORDERS[(rawOrder ?? 'asc').trim().toLowerCase()] ?? 'Asc';
@@ -191,7 +223,7 @@ export function buildSearchPayload(opts: {
   fields?: string[];
   pageIndex?: number;
   pageSize?: number;
-  sortedBy?: string;
+  sortedBy?: SortedByInput;
   withCount?: boolean;
 }): Record<string, unknown> {
   const pageSize = Math.min(opts.pageSize ?? 20, MAX_PAGE_SIZE);
@@ -221,11 +253,14 @@ export function buildSearchResponse(
   const { truncate = true } = options;
   const cappedPageSize = Math.min(pageSize, MAX_PAGE_SIZE);
   const rawRecords = (result['results'] ?? result['items'] ?? []) as unknown;
-  const records = Array.isArray(rawRecords)
-    ? truncate
-      ? (rawRecords as Record<string, unknown>[]).map(truncateRecord)
-      : (rawRecords as Record<string, unknown>[])
+  // Redact FIRST (same invariant as every other read path: a secret-bearing
+  // field can never reach the model unredacted), then truncate.
+  const redacted = Array.isArray(rawRecords)
+    ? (rawRecords as Record<string, unknown>[]).map(
+        (r) => redactSensitive(r) as Record<string, unknown>,
+      )
     : [];
+  const records = truncate ? redacted.map(truncateRecord) : redacted;
 
   const total =
     typeof result['count'] === 'number' ? (result['count'] as number) : null;

@@ -56,6 +56,10 @@ export const RUN_PERIOD_EVENTS = new Set<string>([
   'on_tsa_signer_expiration',
   'on_credentials_expiration',
   'on_license_expiration',
+  // NB: the deprecated alias `on_ca_expiration` is deliberately NOT here -
+  // Stream itself rejects runPeriod on it (verified live: 400 TRIGGER-002
+  // "runPeriod cannot be specified on event 'on_ca_expiration'"). Use
+  // on_x509_ca_expiration for a periodic CA-expiration trigger.
 ]);
 
 /** RESTAuthenticationType `authenticationType`. */

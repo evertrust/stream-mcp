@@ -145,7 +145,9 @@ describe('decoders', () => {
     const pw = part(parts, 'password');
     expect(pw).toBeDefined();
     expect(pw.data).toBe('s3cret');
-    expect(pw.mimeType).toBe('text/plain');
+    // Plain data field (no filename): Play controllers read the password from
+    // dataParts; a file part is invisible to them (verified live).
+    expect(pw.filename).toBeUndefined();
     // privateKey is a SECRET PEM and must be redacted in the tool result.
     const out = json(res);
     expect(out.privateKey).toBe('<redacted>');
@@ -317,5 +319,34 @@ describe('ekus', () => {
       expected_oid: '1.3.4',
     });
     expect(client.delete).toHaveBeenCalledWith('/api/v1/extension/ekus/1.3.4');
+  });
+});
+
+describe('decoder multipart content handling', () => {
+  it('uploads base64 (non-PEM) content as decoded raw bytes', async () => {
+    const { tools, client } = setup();
+    client.postMultipart.mockResolvedValue({
+      certificate: {},
+      privateKey: 'x',
+    });
+    const der = Buffer.from([0x30, 0x82, 0x01, 0x02, 0xff]);
+    await tool(tools, 'extract_pkcs12').handler({
+      content: der.toString('base64'),
+      password: 'pw',
+    });
+    const parts = client.postMultipart.mock.calls[0][1];
+    const part = parts[0];
+    expect(Buffer.isBuffer(part.data)).toBe(true);
+    expect(Buffer.compare(part.data, der)).toBe(0);
+  });
+
+  it('keeps PEM content as text', async () => {
+    const { tools, client } = setup();
+    client.postMultipart.mockResolvedValue({});
+    await tool(tools, 'decode_x509').handler({
+      content: '-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----',
+    });
+    const parts = client.postMultipart.mock.calls[0][1];
+    expect(typeof parts[0].data).toBe('string');
   });
 });

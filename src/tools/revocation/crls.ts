@@ -117,7 +117,10 @@ export function registerCrlTools(
       }),
     },
     async ({ ca, form }) => {
-      const path = `${PUBLISHED_CRL_ROUTE}/${encodePathSegment(ca)}?form=${form}`;
+      // Stream's CRLForm entryNames are lowercase ("pem" | "der") - verified
+      // in models/x509/crl/CRLForm.scala; uppercase is rejected with a 400
+      // enum-parse error.
+      const path = `${PUBLISHED_CRL_ROUTE}/${encodePathSegment(ca)}?form=${(form ?? 'PEM').toLowerCase()}`;
       if (form === 'DER') {
         const buf = await client.getBytes(path, client.exportTimeout);
         return text(
