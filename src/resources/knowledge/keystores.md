@@ -32,7 +32,7 @@ Note: input fields are snake_case (`rsa_x931_mode`, `pool_size`, `user_type`, `r
 - `list_keystores` — all keystores with live `status`. Empty -> 204 (returned as an empty list).
 - `get_keystore` — one by `name`; `KEYSTORE-003` (404) if not found.
 - `create_keystore` — polymorphic by `type`. `KEYSTORE-004` if the name already exists; `KEYSTORE-002` on a bad name (regex `[0-9a-zA-Z-_.]+`), bad enum, or missing per-type required fields.
-- `update_keystore` — **full-replace** (GET-strip-merge-PUT). The body's `name` is the lookup key; `type` must match the existing record. To change one field, fetch with `get_keystore`, modify, and resend the whole object. `status`/`id` are stripped; the PKCS#11 `pin` is **retained if omitted** — only resend `pin` to change it.
+- `update_keystore` — merging update (the tool does GET-strip-merge-PUT over Stream's full-replace PUT). The body's `name` is the lookup key; `type` must match the existing record. Pass only the fields you change — omitted fields keep their current values. `status`/`id` are stripped; the PKCS#11 `pin` is **retained if omitted** — only resend `pin` to change it.
 - `delete_keystore` — by `name`. Blocked with `KEYSTORE-005` (403) if the keystore is referenced by any SSH CA, x509 CA, OCSP signer, or Timestamping signer (the error `detail` lists the referencing objects).
 
 Create a PKCS#11 keystore:

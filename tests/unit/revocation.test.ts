@@ -341,10 +341,9 @@ describe('CSR + CA assignment', () => {
     // overrides applied
     expect(putBody.enableOCSP).toBe(true);
     expect(putBody.ocspSigner).toBe('LME-OCSP-SIGNER');
-    // server-managed / rich-on-read fields stripped
+    // server-managed fields stripped
     for (const stripped of [
       'id',
-      'certificate',
       'altPrivateKey',
       'revoked',
       'revocationDate',
@@ -352,6 +351,10 @@ describe('CSR + CA assignment', () => {
     ]) {
       expect(putBody[stripped]).toBeUndefined();
     }
+    // certificate is NOT stripped: it is PEM-converted so the body still
+    // deserializes on an issued CA where dn is None (verified live: stripping
+    // it fails CA-002 "dn is mandatory when certificate is not specified").
+    expect(putBody.certificate).toBe('PEM');
     // privateKey + dn MUST survive: the CA PUT deserializes into the model
     // (privateKey is non-optional, dn is mandatory cert-less) BEFORE
     // updateFrom() runs; stripping them yields CA-002 "/privateKey:

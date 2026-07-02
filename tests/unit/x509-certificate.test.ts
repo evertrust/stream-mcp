@@ -88,6 +88,23 @@ describe('search_certificates', () => {
       withCount: true,
     });
   });
+
+  it('accepts the array form of sorted_by (unified across search tools)', async () => {
+    const { client, tool } = setup();
+    client.post.mockResolvedValue({ results: [], count: 0 });
+    await tool('search_certificates').h({
+      query: 'status is valid',
+      sorted_by: [
+        { element: 'notAfter', order: 'asc' },
+        { element: 'dn', order: 'Desc' },
+      ],
+    });
+    const body = client.post.mock.calls[0][1];
+    expect(body.sortedBy).toEqual([
+      { element: 'notAfter', order: 'Asc' },
+      { element: 'dn', order: 'Desc' },
+    ]);
+  });
 });
 
 describe('aggregate_certificates', () => {

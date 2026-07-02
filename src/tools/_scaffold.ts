@@ -27,8 +27,9 @@ import { z } from 'zod';
 import { StreamError } from '../client/errors.js';
 import type { StreamClient } from '../client/http.js';
 import {
+  MUTATE_RESPONSE_OUTPUT_SCHEMA,
   buildListResponse,
-  buildMutateResponse,
+  buildMutateResult,
   deleteGuard,
   encodePathSegment,
   redactedJson,
@@ -108,6 +109,24 @@ export function mandatoryNote(fields: readonly string[]): string {
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
+/** JSON tool result carrying the same object as structuredContent. */
+const jsonResult = (obj: Record<string, unknown>) => ({
+  content: [{ type: 'text' as const, text: JSON.stringify(obj) }],
+  structuredContent: obj,
+});
+
+/**
+ * Surface a preValidate failure as a tool EXECUTION error (isError result via
+ * the registerTool wrapper), never as a plain result a model could mistake
+ * for success (MCP spec 2025-11-25, SEP-1303).
+ */
+function throwPreValidate(message: string): never {
+  throw new StreamError(400, {
+    errorCode: 'CLIENT-VALIDATION',
+    message,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // GET-strip-merge-PUT with explicit strip set
 // ---------------------------------------------------------------------------
@@ -157,7 +176,7 @@ export function registerReadTools(
     server,
     `list_${spec.nounPlural}`,
     {
-      description: `${opts.listDescription}\nSafety tier: read-only${refFooter(spec)}`,
+      description: `${opts.listDescription}${refFooter(spec)}`,
       inputSchema: z.object({
         max_items: z
           .number()
@@ -198,7 +217,7 @@ export function registerReadTools(
       {
         description:
           `${opts.getDescription ?? `Get a single ${spec.label} by ${idField}.`}` +
-          `\nSafety tier: read-only${refFooter(spec)}`,
+          `${refFooter(spec)}`,
         inputSchema: z.object({
           [idField]: z.string().describe(`Exact ${spec.label} ${idField}.`),
         }),
@@ -234,14 +253,15 @@ export function registerCreateTool<S extends z.ZodObject<z.ZodRawShape>>(
     server,
     `create_${spec.noun}`,
     {
-      description: `${opts.description}\nSafety tier: mutating-safe\n${immutableNote(
+      description: `${opts.description}\n${immutableNote(
         spec,
       )}\n${mandatoryNote(opts.mandatoryFields)}${refFooter(spec)}`,
       inputSchema: opts.inputSchema,
+      outputSchema: MUTATE_RESPONSE_OUTPUT_SCHEMA,
     },
     async (args: z.infer<S>) => {
       const err = opts.preValidate?.(args);
-      if (err !== undefined) return text(err);
+      if (err !== undefined) throwPreValidate(err);
       const body = opts.buildPayload(args);
       const result = await client.post<Record<string, unknown>>(
         spec.routeCollection,
@@ -250,8 +270,8 @@ export function registerCreateTool<S extends z.ZodObject<z.ZodRawShape>>(
       const name = String(
         (body as Record<string, unknown>)[spec.idField ?? 'name'] ?? '',
       );
-      return text(
-        buildMutateResponse({
+      return jsonResult(
+        buildMutateResult({
           action: 'created',
           kind: spec.noun,
           name,
@@ -284,16 +304,17 @@ export function registerUpdateTool<S extends z.ZodObject<z.ZodRawShape>>(
     `update_${spec.noun}`,
     {
       description:
-        `${opts.description}\nSafety tier: mutating-safe\n` +
+        `${opts.description}\n` +
         `Update is a full-replace done as GET -> strip server fields -> merge your ` +
         `changes -> PUT: any field you OMIT keeps its current value (the tool ` +
         `re-sends it from the existing record). Use clear_fields to explicitly null ` +
         `an optional field. ${immutableNote(spec)}${refFooter(spec)}`,
       inputSchema: opts.inputSchema,
+      outputSchema: MUTATE_RESPONSE_OUTPUT_SCHEMA,
     },
     async (args: z.infer<S>) => {
       const err = opts.preValidate?.(args);
-      if (err !== undefined) return text(err);
+      if (err !== undefined) throwPreValidate(err);
       const id = String((args as Record<string, unknown>)[idField]);
       const overrides = opts.buildOverrides(args);
       const clearFields = (args as Record<string, unknown>)['clear_fields'] as
@@ -325,8 +346,8 @@ export function registerUpdateTool<S extends z.ZodObject<z.ZodRawShape>>(
         overrides,
         clearFields,
       );
-      return text(
-        buildMutateResponse({
+      return jsonResult(
+        buildMutateResult({
           action: 'updated',
           kind: spec.noun,
           name: id,
@@ -353,7 +374,7 @@ export function registerDeleteTool(
     `delete_${spec.noun}`,
     {
       description:
-        `${opts.description}\nSafety tier: mutating-destructive\n` +
+        `${opts.description}\n` +
         `Requires ${idField} confirmation via expected_${idField}.` +
         `${opts.deleteConstraints ? `\n${opts.deleteConstraints}` : ''}${refFooter(spec)}`,
       inputSchema: z.object({
@@ -362,15 +383,18 @@ export function registerDeleteTool(
           .string()
           .describe(`Must exactly match ${idField} as a deletion safeguard.`),
       }),
+      outputSchema: {
+        deleted: z.boolean(),
+        [idField]: z.string(),
+        kind: z.string(),
+      },
     },
     async (args: Record<string, unknown>) => {
       const id = String(args[idField]);
       const expected = String(args[`expected_${idField}`]);
       deleteGuard(id, expected, idField);
       await client.delete(itemPath(spec, id));
-      return text(
-        JSON.stringify({ deleted: true, [idField]: id, kind: spec.noun }),
-      );
+      return jsonResult({ deleted: true, [idField]: id, kind: spec.noun });
     },
   );
 }
@@ -403,7 +427,7 @@ export function registerDescribeSchemaTool(
         `Return the exact request structure for ${info.label} (subtypes, mandatory ` +
         `fields, enums, full JSON Schema). Call this BEFORE create_${info.noun} or ` +
         `update_${info.noun} so the body matches what Stream expects - never guess ` +
-        `the structure.\nSafety tier: read-only${foot}`,
+        `the structure.${foot}`,
       inputSchema: z.object({
         subtype: z
           .string()

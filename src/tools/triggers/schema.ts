@@ -248,8 +248,13 @@ export function validateTrigger(args: TriggerInput): void {
   if (!requiresRunPeriod && args.run_period !== undefined) {
     throw new StreamError(422, {
       errorCode: 'TRIGGER-RUNPERIOD-FORBIDDEN',
-      message: `run_period is forbidden for non-expiration event "${args.event}".`,
-      remediation: 'Omit run_period for this event.',
+      message: `run_period is forbidden for event "${args.event}".`,
+      remediation:
+        args.event === 'on_ca_expiration'
+          ? 'The deprecated alias on_ca_expiration takes no run_period; for a ' +
+            'periodic CA-expiration trigger use on_x509_ca_expiration with ' +
+            'run_period instead.'
+          : 'Omit run_period for this event.',
     });
   }
 

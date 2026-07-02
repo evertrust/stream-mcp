@@ -30,12 +30,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { StreamError } from '../../client/errors.js';
 import type { StreamClient } from '../../client/http.js';
 import { buildMutateResponse, encodePathSegment } from '../helpers.js';
 import { registerTool } from '../register.js';
 import {
   type ConfigSpec,
-  getStripMergePutExplicit,
   registerCreateTool,
   registerDeleteTool,
   registerReadTools,
@@ -75,9 +75,14 @@ const CA_PUT = '/api/v1/cas';
 // truth in x509-ca/cas.ts) and add the fields this CA-update path does not
 // round-trip: certificate (rich-on-read / write-only PEM, server-restored) and
 // altPrivateKey (server keeps the previous for a certificated CA).
+// NB: `certificate` is deliberately NOT in this strip set. Stream validates
+// the PUT body BEFORE updateFrom(previous) runs, and an ISSUED CA's GET has
+// dn=None - so a body with neither dn nor certificate fails CA-002
+// "dn is mandatory when certificate is not specified" (verified live).
+// Like update_ca, the rich-on-read certificate object is converted back to
+// its PEM string so the body still deserializes.
 const CA_STRIP_FIELDS = [
   ...CA_SERVER_MANAGED_STRIP_FIELDS,
-  'certificate',
   'altPrivateKey',
 ] as const;
 
@@ -118,9 +123,10 @@ const privateKeyShape = z.object({
     .enum(HASH_ALGORITHMS)
     .optional()
     .describe(
-      'OPTIONAL. Signing hash algorithm. Allowed: SHA1, SHA224, SHA256, SHA384, ' +
-        'SHA512. Omit for EdDSA curves. The server may normalize this to match ' +
-        'the certificate.',
+      'Signing hash algorithm. Allowed: SHA1, SHA224, SHA256, SHA384, ' +
+        'SHA512. REQUIRED by the server on create for RSA keys (400 "Missing ' +
+        'hash algorithm" otherwise - verified live). Omit for EdDSA curves. ' +
+        'The server may normalize this to match the certificate.',
     ),
   use_pss: z
     .boolean()
@@ -341,13 +347,41 @@ export function registerSignerTools(
       }),
     },
     async ({ ca, ocsp_signer }) => {
-      const result = await getStripMergePutExplicit(
-        client,
-        CA_GET(ca),
-        CA_PUT,
-        CA_STRIP_FIELDS,
-        { enableOCSP: true, ocspSigner: ocsp_signer },
-      );
+      // GET -> strip server fields -> PEM-convert certificate -> merge -> PUT
+      // (same contract as update_ca; getStripMergePutExplicit cannot be used
+      // here because it has no value transform for the certificate field).
+      const current = await client.get<Record<string, unknown>>(CA_GET(ca));
+      if (
+        current === null ||
+        typeof current !== 'object' ||
+        Array.isArray(current)
+      ) {
+        throw new StreamError(502, {
+          errorCode: 'CONFIG-BAD-GET',
+          message: `Expected a single CA object from ${CA_GET(ca)} before update.`,
+        });
+      }
+      const strip = new Set<string>(CA_STRIP_FIELDS);
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(current)) {
+        if (strip.has(k)) continue;
+        if (
+          k === 'certificate' &&
+          v !== null &&
+          typeof v === 'object' &&
+          !Array.isArray(v)
+        ) {
+          const pem = (v as Record<string, unknown>)['pem'];
+          if (typeof pem === 'string') {
+            payload['certificate'] = pem;
+            continue;
+          }
+        }
+        payload[k] = v;
+      }
+      payload['enableOCSP'] = true;
+      payload['ocspSigner'] = ocsp_signer;
+      const result = await client.put<Record<string, unknown>>(CA_PUT, payload);
       return text(
         buildMutateResponse({
           action: 'updated',

@@ -65,7 +65,11 @@ const privateKeySchema = z
     hash_algorithm: z
       .enum(SSH_HASH_ALGORITHMS)
       .optional()
-      .describe('Hash algorithm. Omit for Ed25519 keys (no hash).'),
+      .describe(
+        'Hash algorithm. REQUIRED by the server on create for RSA keys (400 ' +
+          '"Missing hash algorithm" otherwise - verified live). Omit for ' +
+          'Ed25519 keys (no hash).',
+      ),
     use_pss: z.boolean().optional().describe('RSA-PSS toggle.'),
   })
   .describe(

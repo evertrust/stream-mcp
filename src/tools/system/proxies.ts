@@ -86,12 +86,12 @@ const updateSchema = z.object({
 function validateHost(host: string | undefined): string | undefined {
   if (host === undefined) return undefined;
   if (!looksLikeValidHost(host)) {
-    return JSON.stringify({
-      error: 'INVALID_HOST',
-      message:
-        `host='${host}' is not a valid hostname (needs a dot), IPv4/range/CIDR, or IPv6/CIDR. ` +
-        'Stream rejects it with PROXY-002.',
-    });
+    // Plain message: the scaffold surfaces it as an isError tool result with
+    // a CLIENT-VALIDATION structured envelope.
+    return (
+      `INVALID_HOST: host='${host}' is not a valid hostname (needs a dot), ` +
+      'IPv4/range/CIDR, or IPv6/CIDR. Stream rejects it with PROXY-002.'
+    );
   }
   return undefined;
 }

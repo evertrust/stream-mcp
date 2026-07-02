@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { StreamError } from '../../client/errors.js';
 import type { StreamClient } from '../../client/http.js';
 import {
   getAllResources,
@@ -134,12 +135,13 @@ export function registerDocsTools(
         const topics = getListedResources()
           .map((r) => r.uri)
           .join(', ');
-        return text(
-          JSON.stringify({
-            error: `Unknown doc URI: ${normalized}`,
-            available_topics: topics,
-          }),
-        );
+        // A miss is a tool execution error (isError via the registerTool
+        // wrapper), not a plain result a model could mistake for content.
+        throw new StreamError(404, {
+          errorCode: 'DOC-NOT-FOUND',
+          message: `Unknown doc URI: ${normalized}`,
+          remediation: `Use one of the available topics: ${topics}.`,
+        });
       }
       return text(entry.content);
     },

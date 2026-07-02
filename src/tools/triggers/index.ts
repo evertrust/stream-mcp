@@ -292,9 +292,12 @@ function registerTestTrigger(server: McpServer, client: StreamClient): void {
         'call to url and returns the remote response (status, headers, body); ' +
         'credential-bearing headers and reflected request/response bodies are ' +
         'redacted before they reach you. Optional dictionary supplies {{var}} ' +
-        'template bindings. EXTERNAL_RL_STORAGE is not supported.\n' +
-        'Safety tier: mutating-safe' +
+        'template bindings. EXTERNAL_RL_STORAGE is not supported.' +
         `\n\nRef: ${KNOWLEDGE_REF}.`,
+      // REST test makes Stream perform a REAL outbound HTTP call to a
+      // caller-supplied URL -> genuinely open-world (unlike the closed
+      // Stream-API default).
+      annotations: { openWorldHint: true },
       inputSchema: z.object({
         trigger: triggerInputSchema.describe(
           'Full EMAIL or REST trigger object to test (validated like create).',

@@ -7,10 +7,13 @@ annotations:
 - **read-only** — no state change (`readOnlyHint`).
 - **idempotent** — mutating, converges to the same state (`update`/`upsert`/`assign`).
 - **additive** — creates or issues new state (`create`/`issue`/`enroll`/`enhance`).
-- **destructive** — removes or revokes (`delete`/`revoke`) (`destructiveHint`).
+- **destructive** — removes, revokes, or irreversibly replaces (`delete`/`revoke`/`reset`) (`destructiveHint`).
+- **open-world** — reaches beyond the Stream API (`openWorldHint`): HSM tools load a native library; `test_trigger` calls an arbitrary external URL.
 
 > Object names/identifiers are immutable primary keys — always ask the user for
-> them before any `create_*`. Updates are full-replace (GET → strip → merge → PUT).
+> them before any `create_*`. The `update_*` tools merge (GET → strip → merge →
+> PUT): omitted fields keep their current values; `clear_fields` nulls one.
+> Exception: `update_trigger` is full-replace.
 
 ## X509 Certificate Authorities (12)
 
@@ -91,8 +94,8 @@ Keystores (software / PKCS#11 / AWS / Azure / GCP), private keys, and HSM intros
 | `create_key` | additive | Generate a new private key on a keystore. POST on the collection root — the keystore is na |
 | `delete_key` | destructive | Delete (or, for AWS KMS, disable) a private key on a keystore. Blocked (KEY-005) if refere |
 | `find_ca_keys` | read-only | Find keys on a keystore whose public key matches a given CA certificate. Read-only search  |
-| `get_hsm_info` | read-only | Load a PKCS#11 library and return its module info (libraryVersion, cryptokiVersion, manufa |
-| `get_hsm_slots` | read-only | List the slots of a PKCS#11 library (id, isHardwareSlot, manufacturerID, hardwareVersion,  |
+| `get_hsm_info` | open-world | Load a PKCS#11 library and return its module info (libraryVersion, cryptokiVersion, manufa |
+| `get_hsm_slots` | open-world | List the slots of a PKCS#11 library (id, isHardwareSlot, manufacturerID, hardwareVersion,  |
 
 ## Triggers & Notifications (6)
 
@@ -105,7 +108,7 @@ Email / REST / expiration notification triggers (incl. external revocation-list 
 | `create_trigger` | additive | Create an EMAIL or REST notification trigger. name is an immutable primary key — ask the u |
 | `update_trigger` | idempotent | Full-replace update of an EMAIL or REST trigger. The body name is the lookup key (PUT on t |
 | `delete_trigger` | destructive | Delete a notification trigger by name |
-| `test_trigger` | additive | Dry-run a trigger without persisting it. EMAIL test only renders the template (never sends |
+| `test_trigger` | open-world | Dry-run a trigger without persisting it. EMAIL test only renders the template (never sends |
 
 ## System Management (19)
 
@@ -150,7 +153,7 @@ Roles, local identities, identity providers, credentials, principal infos, and w
 | `create_local_identity` | additive | Create a local identity. The server GENERATES the password (you cannot set it); it is retu |
 | `update_local_identity` | idempotent | Update a local identity (full-replace of optional fields). The password CANNOT be changed  |
 | `delete_local_identity` | destructive | Delete a local identity by identifier. Self-delete is forbidden by the server |
-| `reset_local_identity_password` | additive | Reset a local identity password. The server GENERATES a new random password and returns it |
+| `reset_local_identity_password` | destructive | Reset a local identity password. The server GENERATES a new random password and returns it |
 | `list_identity_providers` | read-only | List dynamic identity providers (mixed Local / OpenId). The full provider list includes ty |
 | `list_enabled_identity_providers` | read-only | List only ENABLED identity providers; set ui_only=true for those shown on the login UI |
 | `get_identity_provider` | read-only | Get a single identity provider by name |

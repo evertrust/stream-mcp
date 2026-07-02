@@ -119,20 +119,20 @@ function validateThrottle(
 ): string | undefined {
   if (duration !== undefined) {
     if (!DURATION_RE.test(duration.trim())) {
-      return JSON.stringify({
-        error: 'INVALID_THROTTLE_DURATION',
-        message:
-          `throttle_duration='${duration}' is not a valid FiniteDuration. ` +
-          'Use a value like "5 seconds", "500 ms", or "1 minute".',
-      });
+      // Plain message: the scaffold surfaces it as an isError tool result
+      // with a CLIENT-VALIDATION structured envelope.
+      return (
+        `INVALID_THROTTLE_DURATION: throttle_duration='${duration}' is not a ` +
+        'valid FiniteDuration. Use a value like "5 seconds", "500 ms", or ' +
+        '"1 minute".'
+      );
     }
     if (parallelism === undefined) {
-      return JSON.stringify({
-        error: 'THROTTLE_PARALLELISM_REQUIRED',
-        message:
-          'throttle_duration requires throttle_parallelism to also be set ' +
-          '(Stream: "Throttle duration must be defined with throttle parallelism").',
-      });
+      return (
+        'THROTTLE_PARALLELISM_REQUIRED: throttle_duration requires ' +
+        'throttle_parallelism to also be set (Stream: "Throttle duration ' +
+        'must be defined with throttle parallelism").'
+      );
     }
   }
   return undefined;

@@ -71,7 +71,7 @@ Create/import quirks — read carefully:
 - **On create, `certificate` is FORCED to `None`.** A fresh signer cannot carry a cert even if you send a PEM. Create it with a `dn`, then `generate_ocsp_signer_csr`, then import the issued cert through the CA/import flow (not a revocation tool). `certificate` is **PEM-in / rich-object-out** (decoded object with `dn`, `serial`, `notBefore/notAfter`, `pem`, `keyUsages`, `extendedKeyUsages` incl. `OCSPSigning`, etc.).
 - **`dn` and `certificate` are mutually exclusive.** Once a cert exists, `dn` is forced `None` (omitted). Use `dn` only on a certless signer.
 - Any supplied certificate **must contain the `OCSPSigning` extended key usage**, else `400 OCSP-SIGNER-002`.
-- `update_ocsp_signer` is **full-replace** keyed by body `name`. If the previous signer **already has a cert**, `certificate` and `privateKey` (keystore + key name) are **not editable** — only `privateKey.usePSS` and `privateKey.hashAlgorithm` are applied and the existing cert is kept regardless of body. If there is no cert yet, all attributes are editable.
+- `update_ocsp_signer` merges (the tool GETs and re-sends unchanged fields; the underlying PUT is full-replace keyed by body `name`). If the previous signer **already has a cert**, `certificate` and `privateKey` (keystore + key name) are **not editable** — only `privateKey.usePSS` and `privateKey.hashAlgorithm` are applied and the existing cert is kept regardless of body. If there is no cert yet, all attributes are editable.
 
 ```jsonc
 // create_ocsp_signer — fresh signer, no cert yet:
@@ -141,7 +141,7 @@ Trigger errors: `TRIGGER-002` (400 invalid/bad reference), `TRIGGER-003` (404), 
 - **`get_crl` / `get_ocsp_signer` 404 on missing**, not 204.
 - **`update_crl_next_refresh` past value = silent no-op** (200, unchanged). Pass a future instant.
 - **`create_ocsp_signer` ignores any `certificate`** (forced None); import the cert later via the CSR flow.
-- **`update_ocsp_signer`** is full-replace by body `name`; cert + key are locked once a cert exists.
+- **`update_ocsp_signer`** merges (underlying PUT full-replace by body `name`); cert + key are locked once a cert exists.
 - **`assign_ocsp_signer_to_ca` needs the VA module** and lives in the CA domain (full-replace CA update).
 - **External CRL publishing = a trigger** (`type=external_rl_storage`) wired via the CA's `onCRL*` lists — not a revocation tool.
 - All names/identifiers are immutable primary keys; secrets (credentials) are write-only/redacted.

@@ -13,6 +13,7 @@ import { StreamError } from '../../client/errors.js';
 import type { StreamClient } from '../../client/http.js';
 import {
   buildSearchResponse,
+  buildSortedBy,
   encodePathSegment,
   MAX_PAGE_SIZE,
   SEARCH_RESPONSE_OUTPUT_SCHEMA,
@@ -69,10 +70,11 @@ const SEARCH_INPUT = z.object({
     .optional()
     .describe('Page size (default 20, capped at 100).'),
   sorted_by: z
-    .array(SORT_ELEMENT)
+    .union([z.string(), z.array(SORT_ELEMENT)])
     .optional()
     .describe(
-      'Sort elements. Each { element, order }. Sortable elements: ' +
+      'Sort as `field:order` (e.g. `timestamp:desc`) or as a list of ' +
+        '{ element, order } entries. Sortable elements: ' +
         EVENT_SORT_FIELDS.join(', ') +
         '. Duplicate elements are rejected by the server.',
     ),
@@ -106,9 +108,8 @@ function registerSearch(server: McpServer, client: StreamClient): void {
       // `id exists` is a STREAMQL-001 parse error). An absent `query` makes the
       // server apply an empty filter (match all), per the audit contract.
       if (args.query && args.query.trim()) payload['query'] = args.query;
-      if (args.sorted_by && args.sorted_by.length > 0) {
-        payload['sortedBy'] = args.sorted_by;
-      }
+      const sortedBy = buildSortedBy(args.sorted_by);
+      if (sortedBy) payload['sortedBy'] = sortedBy;
       if (args.with_count) payload['withCount'] = true;
 
       const result = await client.post<Record<string, unknown>>(

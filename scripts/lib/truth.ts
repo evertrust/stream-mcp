@@ -49,6 +49,10 @@ export const INTENTIONALLY_UNWRAPPED_PATHS = new Set<string>([
   // headers / mTLS, so there is no interactive login step to wrap.
   '/api/v1/security/principals/authenticate',
   '/api/v1/security/principals/logout',
+  // GET variant of the trust-chain decoder that carries the PEM in the URL
+  // path; the MCP wraps the equivalent POST /api/v1/rfc5280/tc, which is the
+  // only sane shape for multi-line PEM input.
+  '/api/v1/rfc5280/tc/{pem}',
 ]);
 
 export interface NormalizedOperation {

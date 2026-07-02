@@ -32,32 +32,6 @@ const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
-// Stream's SortOrder is an enumeratum PlayEnum whose JSON Reads are
-// CASE-SENSITIVE and match the exact entryNames (Asc/Desc/KeyAsc/KeyDesc).
-// The shared buildSearchPayload/buildSortedBy helper emits uppercase ASC/DESC,
-// which the server rejects (400 SSH-CERT-002 "error.expected.validenumvalue" —
-// verified live). We therefore build sortedBy here with the correct casing and
-// bypass the helper's sort path. Accepts the canonical enum names plus the
-// friendly asc/desc aliases.
-const SORT_ORDER_ALIASES: Record<string, string> = {
-  asc: 'Asc',
-  desc: 'Desc',
-  keyasc: 'KeyAsc',
-  keydesc: 'KeyDesc',
-};
-
-function buildSortedByElement(
-  sortedBy?: string,
-): Array<{ element: string; order: string }> | undefined {
-  if (!sortedBy) return undefined;
-  const [rawElement, rawOrder] = sortedBy.split(':', 2);
-  const element = (rawElement ?? '').trim();
-  if (!element) return undefined;
-  const orderKey = (rawOrder ?? 'asc').trim().toLowerCase();
-  const order = SORT_ORDER_ALIASES[orderKey] ?? 'Asc';
-  return [{ element, order }];
-}
-
 // ---------------------------------------------------------------------------
 // search_ssh_certificates
 // ---------------------------------------------------------------------------
@@ -95,12 +69,16 @@ const SEARCH_INPUT = z.object({
     .optional()
     .describe('Page size (default 20, capped at 100).'),
   sorted_by: z
-    .string()
+    .union([
+      z.string(),
+      z.array(z.object({ element: z.string(), order: z.string() })),
+    ])
     .optional()
     .describe(
-      'Sort as `field:order`, e.g. `validBefore:desc`. Order in ' +
+      'Sort as `field:order` (e.g. `validBefore:desc`) or as a list of ' +
+        '{ element, order } entries. Order in ' +
         SSH_SORT_ORDERS.join('/') +
-        ' (asc/desc accepted).',
+        ' (case-insensitive).',
     ),
   with_count: z
     .boolean()
@@ -126,12 +104,9 @@ function registerSearch(server: McpServer, client: StreamClient): void {
         fields: args.fields as string[] | undefined,
         pageIndex: args.page_index,
         pageSize: args.page_size,
+        sortedBy: args.sorted_by,
         withCount: args.with_count,
       });
-      // Override the shared helper's sort (which emits server-rejected
-      // uppercase ASC/DESC) with the correctly-cased SortOrder entryName.
-      const sortedBy = buildSortedByElement(args.sorted_by);
-      if (sortedBy) payload['sortedBy'] = sortedBy;
       const result = await client.post<Record<string, unknown>>(
         '/api/v1/ssh/certificates/search',
         payload,

@@ -12,7 +12,7 @@ Most MCP servers hand an LLM a list of tools and leave it to figure out the doma
 
 ## Features
 
-- **157 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`) surfaced as MCP tool annotations.
+- **157 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`, `open-world`) surfaced as MCP tool annotations.
 - **Knowledge catalog**: 15 topic URIs (with auto-generated section URIs for the longer guides) plus `search_docs` / `get_doc` tools.
 - **Two authentication modes**: local account (API headers) and mutual TLS (PEM or PKCS#12). No OIDC.
 - **Query languages**: SCQL (Stream Certificates Query Language) for certificate search/aggregate and SEQL (Stream Events Query Language) for the audit log, documented in `stream://knowledge/query-languages`.
@@ -109,7 +109,7 @@ The server auto-detects the authentication mode based on which variables are set
 | Variable                        | Default | Description                                                                                                   |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
 | `STREAM_ALLOW_INTERNAL_URLS`    | `false` | Allow REST notification triggers to target loopback/link-local/private hosts. Blocked by default (SSRF guard). |
-| `STREAM_HSM_LIBRARY_ALLOWLIST`  |         | Comma-separated absolute paths; when set, the HSM tools may only load these PKCS#11 libraries.                |
+| `STREAM_HSM_LIBRARY_ALLOWLIST`  |         | Comma-separated absolute paths; when set, the HSM tools may only load these PKCS#11 libraries. **Strongly recommended in production** — unset, any caller-supplied path is forwarded and Stream loads it as native code (a startup-less warning is logged on first unchecked use). |
 
 ### Development and testing
 

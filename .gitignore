@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Local MCP client config (may carry credentials in its env block)
+.mcp.json
 
 # Dependencies
 node_modules/
