@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/evertrust/stream-mcp/compare/v1.0.1...v1.0.2) (2026-07-02)
+
+### Bug Fixes
+
+* MCP-spec compliance, security hardening, and live-QA verified tool fixes ([#9](https://github.com/evertrust/stream-mcp/issues/9)) ([35e821a](https://github.com/evertrust/stream-mcp/commit/35e821ad9807bc569feabd7dc3af408ddf3f60cf)), closes [PKCS#12](https://github.com/evertrust/PKCS/issues/12)
+
 ## [1.0.1](https://github.com/evertrust/stream-mcp/compare/v1.0.0...v1.0.1) (2026-06-18)
 
 ### Bug Fixes
