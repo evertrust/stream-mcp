@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+import { BUILD_TIMESTAMP_ISO } from '../build-info.js';
 import {
   SECTION_URI_TEMPLATE,
   getAllResources,
@@ -30,9 +31,9 @@ function listSectionsFor(topic: string): string[] {
   return [...sections].sort();
 }
 
-// Resources are embedded markdown bundled at build time, so a single
-// build/start timestamp is a faithful "lastModified" for every entry.
-const BUILD_TIMESTAMP_ISO = new Date().toISOString();
+// Resources are embedded markdown bundled at build time, so the build
+// timestamp (BUILD_TIMESTAMP_ISO, injected by tsup; process start in dev) is a
+// faithful "lastModified" for every entry.
 
 export function registerAllResources(server: McpServer): void {
   for (const resource of getListedResources()) {
