@@ -84,13 +84,8 @@ jobs:
       - name: Scenario suite
         run: bun run test:scenarios
 
-      - name: QA E2E smoke
-        # Secrets are scoped to this single step (not job-wide) so install/lint/
-        # build/test steps - which execute the whole devDependency surface -
-        # never see the QA credentials.
-        if: ${{ secrets.STREAM_E2E_URL != '' && secrets.STREAM_E2E_API_ID != '' && secrets.STREAM_E2E_API_KEY != '' }}
-        env:
-          STREAM_E2E_URL: ${{ secrets.STREAM_E2E_URL }}
-          STREAM_E2E_API_ID: ${{ secrets.STREAM_E2E_API_ID }}
-          STREAM_E2E_API_KEY: ${{ secrets.STREAM_E2E_API_KEY }}
-        run: bun run test:e2e:smoke
+      # QA E2E smoke deliberately does NOT run in CI: it needs live QA
+      # credentials, and exposing them to the workflow (job- or step-level)
+      # widens the supply-chain blast radius of every dependency the job
+      # executes. Run it locally instead: `source .env.local && bun run
+      # test:e2e:smoke`.
