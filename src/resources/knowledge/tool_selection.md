@@ -3,7 +3,7 @@ A deterministic "which tool do I use?" playbook for the Stream MCP server. Match
 ## Golden rules (apply to every task)
 
 - **Names are immutable primary keys.** Before creating any object (CA, template, role, credential, signer, trigger, ...), ASK the user for the `name`/`identifier`. Never invent one. You cannot rename later — the only fix is delete + recreate.
-- **Updates are full-replace.** `update_*` sends the WHOLE object. Always `get_*` first, strip server-managed fields (`id`/`_id`, redacted secrets), merge your change, then `update_*`. Omitting a field clears it.
+- **Updates merge — pass only what you change.** The `update_*` tools internally GET the object, strip server fields, merge your changes, and PUT the whole object back: a field you omit KEEPS its current value. Use `clear_fields` to null an optional field. EXCEPTION: `update_trigger` is full-replace — any field you omit is CLEARED, so send the complete trigger.
 - **Read before mutate.** Call `list_*` or `get_*` before any `update_*` / `delete_*` to confirm the object exists and to capture its current state.
 - **Polymorphic config? describe first.** For CAs call `describe_ca_schema` before `create_ca`/`update_ca`. For other polymorphic objects (credentials, identity providers, triggers, signers) check the per-domain knowledge resource for the `type` discriminator and required sub-fields.
 - **Lists 204 → empty.** An empty list response means "no items / or no permission", not an error.
@@ -26,7 +26,7 @@ A deterministic "which tool do I use?" playbook for the Stream MCP server. Match
 | Generate a CRL now                     | `generate_crl`                                          | managed CA with `crlPolicy`             |
 | Decode an unknown blob                 | `detect_file` → `decode_x509`/`decode_csr`/`decode_crl` | the PEM/DER bytes                       |
 | Stand up a managed CA                  | `create_ca` → `generate_ca_csr` → `issue_ca`            | see CA flow below                       |
-| Change any object                      | `get_<x>` → edit → `update_<x>`                         | object name + full body                 |
+| Change any object                      | `update_<x>` (changed fields only)                      | object name + the fields to change      |
 | Delete any object                      | `list_<x>`/`get_<x>` → `delete_<x>`                     | object name (+ `expected_<id>` confirm) |
 
 ## Inspect identity & permissions
@@ -40,7 +40,7 @@ A deterministic "which tool do I use?" playbook for the Stream MCP server. Match
 ```
 # active certs for one CA, soonest-expiring first
 search_certificates(query='ca equals "ASA-RCA" and status equals valid',
-                    sortedBy=[{element:"notAfter", order:"Asc"}], withCount=true)
+                    sorted_by="notAfter:asc", with_count=true)
 
 # by subject (case-insensitive regex)
 search_certificates(query='dn matches "CN=.*example\\.com"')
@@ -54,7 +54,7 @@ To count/group instead of list, use `aggregate_certificates` with the same SCQL 
 
 ```
 search_events(query='timestamp after 2025-01-01',
-              sortedBy=[{element:"timestamp", order:"Desc"}], withCount=true)
+              sorted_by="timestamp:desc", with_count=true)
 ```
 
 Supporting tools: `get_event` (one event), `get_event_dictionary` (valid codes/modules/statuses — call this to discover filterable values), and chain-integrity: `list_event_integrity_reports`, `run_event_integrity_check`.
@@ -64,7 +64,7 @@ Supporting tools: `get_event` (one event), `get_event_dictionary` (valid codes/m
 Prerequisites: a **managed**, enroll-enabled, ready CA (its `name`); an enabled certificate **template** (its `name`); and a PKCS#10 **CSR PEM** carrying the public key.
 
 ```
-enroll_certificate(ca="ASA-ICA", template="tls-server",
+enroll_certificate(ca="ASA-ICA", template_name="tls-server",
                    csr="-----BEGIN CERTIFICATE REQUEST-----\n...",
                    dn="CN=host.example.com,O=Acme")
 ```
@@ -73,13 +73,14 @@ Notes: returns 201 + the full decoded X509Certificate. `dnElements` (e.g. `cn.1`
 
 ## Revoke a certificate (`revoke_certificate`)
 
-Identify the cert EITHER by full PEM (`certificate`, wins — `serial`/`ca` ignored) OR by `serial` + `ca` pair. `reason` is optional. Idempotent: re-revoking an already-revoked cert is a no-op success.
+Identify the cert EITHER by full PEM (`certificate`, wins — `serial`/`ca` ignored) OR by `serial` + `ca` pair. `reason` is **required** (one of `unspecified`, `keyCompromise`, `cACompromise`, `affiliationChanged`, `superseded`, `cessationOfOperation`, `certificateHold`). When revoking by `serial`+`ca`, also pass `expected_serial` equal to `serial` — the irreversibility confirmation. Idempotent: re-revoking an already-revoked cert is a no-op success.
 
 ```
-revoke_certificate(serial="0A1B2C...", ca="ASA-ICA", reason="keyCompromise")
+revoke_certificate(serial="0a1b2c...", ca="ASA-ICA",
+                   expected_serial="0a1b2c...", reason="keyCompromise")
 ```
 
-SSH equivalent: `revoke_ssh_certificate`.
+SSH equivalent: `revoke_ssh_certificate` — it takes **no `reason` field**.
 
 ## Stand up a Certificate Authority (CA flow)
 
@@ -94,7 +95,7 @@ Ask the user for the CA `name` (immutable) and `type` (`managed` | `external`). 
 - **Convert external → managed (or attach keys):** `migrate_ca` (NOT `update_ca`). Only an external CA with an associated CRL can migrate (`CA-012`).
 - **Add/extend CA capabilities:** `enhance_ca`.
 
-All managed-CA ops require the `CA` license module and MANAGE permission. To change ordinary fields on an existing CA use `get_ca` → edit → `update_ca` (full-replace; `revoked` and post-issue `dn` are server-managed — don't set them).
+All managed-CA ops require the `CA` license module and MANAGE permission. To change ordinary fields on an existing CA use `update_ca` with just the fields to change (it merges; `revoked` and post-issue `dn` are server-managed — don't set them).
 
 ## Manage revocation (CRL / OCSP)
 
@@ -134,7 +135,7 @@ Reads return 204 on empty or insufficient permission. Create=201, update=200; PO
 - **Local identities:** `list_local_identities`, `get_local_identity`, `create_local_identity`, `update_local_identity`, `delete_local_identity`, `reset_local_identity_password`. Keyed by `identifier`.
 - **Identity providers (managed IdP config — e.g. OIDC/LDAP objects, NOT MCP auth):** `list_identity_providers`, `get_identity_provider`, `create_identity_provider`, `update_identity_provider`, `delete_identity_provider`. Polymorphic by `type`.
 - **Credentials:** `list_credentials`, `get_credential`, `create_credential`, `update_credential`, `delete_credential`. Polymorphic `type` ∈ `password`|`raw`|`ssh`|`x509`; `target` must form a valid `(type→target)` pair.
-- **Principal infos:** `list_principal_infos`, `get_principal_info`, `search_principal_infos`, `create_principal_info`, `update_principal_info`, `delete_principal_info`.
+- **Principal infos:** `get_principal_info`, `search_principal_infos` (no list tool — search is the only enumeration path), `create_principal_info`, `update_principal_info`, `delete_principal_info`.
 
 ## Triggers / notifications
 
@@ -156,7 +157,7 @@ Reads return 204 on empty or insufficient permission. Create=201, update=200; PO
 ## Anti-patterns (do NOT do these)
 
 - Do NOT guess object names — ask the user; names are permanent.
-- Do NOT `update_*` from a partial body — you'll wipe unspecified fields. `get_*` → merge → `update_*`.
+- Do NOT send a partial body to `update_trigger` — it is full-replace and will wipe omitted fields. (Other `update_*` tools merge: omitted fields are preserved.)
 - Do NOT use a "rename" tool — none exists. Delete + recreate.
 - Do NOT pass an empty `""` SCQL query to `search_certificates` (invalid). Empty SEQL on `search_events` IS allowed (match-all).
 - Do NOT look for the private key / PKCS#12 on a certificate object — it isn't there.
