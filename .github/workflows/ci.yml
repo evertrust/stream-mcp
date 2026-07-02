@@ -45,10 +45,6 @@ jobs:
   validate:
     name: Validate
     runs-on: runs-on=${{ github.run_id }}/runner=evertrust
-    env:
-      STREAM_E2E_URL: ${{ secrets.STREAM_E2E_URL }}
-      STREAM_E2E_API_ID: ${{ secrets.STREAM_E2E_API_ID }}
-      STREAM_E2E_API_KEY: ${{ secrets.STREAM_E2E_API_KEY }}
     steps:
       - name: Configure Runs-On
         uses: runs-on/action@v2
@@ -63,10 +59,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Dependency audit (advisory)
-        # Surfaces known-vulnerable dependencies. Advisory for now (does not fail
-        # the build); promote to a hard gate once the tree is clean.
-        run: bun audit --audit-level=high || true
+      - name: Dependency audit
+        # Hard gate: a high/critical advisory in the dependency tree fails CI.
+        run: bun audit --audit-level=high
 
       - name: Format check
         run: bun run format:check
@@ -90,5 +85,12 @@ jobs:
         run: bun run test:scenarios
 
       - name: QA E2E smoke
-        if: ${{ env.STREAM_E2E_URL != '' && env.STREAM_E2E_API_ID != '' && env.STREAM_E2E_API_KEY != '' }}
+        # Secrets are scoped to this single step (not job-wide) so install/lint/
+        # build/test steps - which execute the whole devDependency surface -
+        # never see the QA credentials.
+        if: ${{ secrets.STREAM_E2E_URL != '' && secrets.STREAM_E2E_API_ID != '' && secrets.STREAM_E2E_API_KEY != '' }}
+        env:
+          STREAM_E2E_URL: ${{ secrets.STREAM_E2E_URL }}
+          STREAM_E2E_API_ID: ${{ secrets.STREAM_E2E_API_ID }}
+          STREAM_E2E_API_KEY: ${{ secrets.STREAM_E2E_API_KEY }}
         run: bun run test:e2e:smoke
