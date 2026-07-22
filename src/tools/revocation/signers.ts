@@ -16,7 +16,7 @@
  *
  * Quirks honored:
  *   - certificate is rich-on-read (object) but write-only PEM, and immutable once
- *     set -> in stripFields; never an input field here.
+ *     set -> in stripFields; accepted as a PEM string on update for initial import.
  *   - privateKey.keystore + privateKey.name are immutable once a cert exists; the
  *     server keeps the previous values, so the GET-strip-merge-PUT cycle is safe.
  *   - dn is NOT stripped: it is MANDATORY for a cert-less signer (the server
@@ -225,17 +225,26 @@ export function registerSignerTools(
   registerUpdateTool(server, client, SIGNER_SPEC, {
     description:
       'Update an OCSP signer (full-replace, keyed by name). MANDATORY: name (the ' +
-      'immutable lookup key) - ask the user; do not infer it. NOTE: once the ' +
-      'signer has a certificate, its certificate and privateKey keystore/alias ' +
-      'are immutable (only hash_algorithm / use_pss are applied) and dn is ' +
-      'cleared. Any optional field you OMIT keeps its current value (the tool ' +
-      're-sends it from the existing record via the GET-strip-merge-PUT cycle); ' +
-      'use clear_fields to explicitly null an optional field. ' +
+      'immutable lookup key) - ask the user; do not infer it. To attach the ' +
+      'issued certificate to a cert-less signer, pass certificate as a PEM ' +
+      'string. NOTE: once the signer has a certificate, its certificate and ' +
+      'privateKey keystore/alias are immutable (only hash_algorithm / use_pss ' +
+      'are applied) and dn is cleared. Any optional field you OMIT keeps its ' +
+      'current value (the tool re-sends it from the existing record via the ' +
+      'GET-strip-merge-PUT cycle); use clear_fields to explicitly null an ' +
+      'optional field. ' +
       'Requires the VA module.',
     inputSchema: z.object({
       name: z
         .string()
         .describe('REQUIRED. Signer name to update (immutable lookup key).'),
+      certificate: z
+        .string()
+        .optional()
+        .describe(
+          'OPTIONAL. PEM-encoded X.509 certificate to attach to a signer that ' +
+            'does not have one yet.',
+        ),
       dn: z
         .string()
         .optional()
@@ -270,6 +279,9 @@ export function registerSignerTools(
     }),
     buildOverrides: (args) => {
       const overrides: Record<string, unknown> = {};
+      if (args.certificate !== undefined) {
+        overrides['certificate'] = args.certificate;
+      }
       if (args.dn !== undefined) overrides['dn'] = args.dn;
       if (args.private_key !== undefined) {
         overrides['privateKey'] = mapPrivateKey(args.private_key);

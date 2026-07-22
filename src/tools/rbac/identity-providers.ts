@@ -39,81 +39,96 @@ const SPEC: ConfigSpec = {
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 
-// Discriminated input: Local vs OpenId. Reserved name "x509" is rejected.
-const localProvider = z.object({
-  type: z.literal('Local').describe('Discriminator: Local identity provider.'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable provider name (primary key).'),
-  enabled: z
-    .boolean()
-    .describe('MANDATORY. Whether the provider is enabled (true/false).'),
-  enabled_on_ui: z
-    .boolean()
-    .describe(
+// Keep the polymorphic input flat: the MCP SDK normalizes a root-level
+// discriminated union to an empty object schema and hides every field from
+// clients. Type-specific requirements are enforced in superRefine below.
+const booleanInput = z.preprocess((value) => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}, z.boolean());
+
+const providerInput = z
+  .object({
+    type: z
+      .enum(DYNAMIC_PROVIDER_TYPES)
+      .describe('Discriminator: Local or OpenId identity provider.'),
+    name: z
+      .string()
+      .describe('MANDATORY. Immutable provider name (primary key).'),
+    enabled: booleanInput.describe(
+      'MANDATORY. Whether the provider is enabled (true/false).',
+    ),
+    enabled_on_ui: booleanInput.describe(
       'MANDATORY. Whether the provider is shown on the UI (true/false).',
     ),
-  password_policy: z
-    .string()
-    .optional()
-    .describe('Optional password policy/regex name.'),
-});
-
-const openIdProvider = z.object({
-  type: z.literal('OpenId').describe('Discriminator: OpenId (OIDC) provider.'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable provider name (primary key).'),
-  enabled: z
-    .boolean()
-    .describe('MANDATORY. Whether the provider is enabled (true/false).'),
-  enabled_on_ui: z
-    .boolean()
-    .describe(
-      'MANDATORY. Whether the provider is shown on the UI (true/false).',
-    ),
-  provider_metadata_url: z
-    .string()
-    .describe(
-      'MANDATORY. OIDC discovery (.well-known/openid-configuration) URL.',
-    ),
-  scope: z
-    .string()
-    .describe(
-      'MANDATORY. Space-separated OIDC scopes, e.g. "openid email profile".',
-    ),
-  credentials: z
-    .string()
-    .optional()
-    .describe(
-      'OpenId only - name of an existing password credential with target ' +
-        '"openid". Effectively required (server validates it exists and is a ' +
-        'password credential targeting openid); ask the user for it.',
-    ),
-  proxy: z
-    .string()
-    .optional()
-    .describe('Optional name of an existing HTTP proxy.'),
-  timeout: z
-    .string()
-    .optional()
-    .describe(
-      'Optional duration string, e.g. "10 seconds" (default "5 seconds").',
-    ),
-  identifier_claim: z
-    .string()
-    .optional()
-    .describe('Optional identifier claim template (default "{{email}}").'),
-  name_claim: z
-    .string()
-    .optional()
-    .describe('Optional name claim template (default "{{name}}").'),
-});
-
-const providerInput = z.discriminatedUnion('type', [
-  localProvider,
-  openIdProvider,
-]);
+    password_policy: z
+      .string()
+      .optional()
+      .describe('Local only. Optional password policy/regex name.'),
+    provider_metadata_url: z
+      .string()
+      .optional()
+      .describe(
+        'OpenId only. MANDATORY OIDC discovery ' +
+          '(.well-known/openid-configuration) URL.',
+      ),
+    scope: z
+      .string()
+      .optional()
+      .describe(
+        'OpenId only. MANDATORY space-separated OIDC scopes, e.g. ' +
+          '"openid email profile".',
+      ),
+    credentials: z
+      .string()
+      .optional()
+      .describe(
+        'OpenId only. MANDATORY name of an existing password credential with ' +
+          'target "openid"; ask the user for it.',
+      ),
+    proxy: z
+      .string()
+      .optional()
+      .describe('Optional name of an existing HTTP proxy.'),
+    timeout: z
+      .string()
+      .optional()
+      .describe(
+        'Optional duration string, e.g. "10 seconds" (default "5 seconds").',
+      ),
+    identifier_claim: z
+      .string()
+      .optional()
+      .describe('Optional identifier claim template (default "{{email}}").'),
+    name_claim: z
+      .string()
+      .optional()
+      .describe('Optional name claim template (default "{{name}}").'),
+  })
+  .superRefine((args, ctx) => {
+    if (args.name.trim().toLowerCase() === 'x509') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['name'],
+        message: 'Provider name "x509" is reserved and cannot be used.',
+      });
+    }
+    if (args.type !== 'OpenId') return;
+    for (const [field, value] of [
+      ['provider_metadata_url', args.provider_metadata_url],
+      ['scope', args.scope],
+      ['credentials', args.credentials],
+    ] as const) {
+      if (value === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [field],
+          message: `${field} is required for type=OpenId.`,
+        });
+      }
+    }
+  });
 type ProviderInput = z.infer<typeof providerInput>;
 
 function assertNotReserved(name: string): void {
@@ -139,9 +154,9 @@ function buildProviderBody(args: ProviderInput): Record<string, unknown> {
     return body;
   }
   // OpenId
-  body['providerMetadataUrl'] = args.provider_metadata_url;
-  body['scope'] = args.scope;
-  if (args.credentials !== undefined) body['credentials'] = args.credentials;
+  body['providerMetadataUrl'] = args.provider_metadata_url!;
+  body['scope'] = args.scope!;
+  body['credentials'] = args.credentials!;
   if (args.proxy !== undefined) body['proxy'] = args.proxy;
   if (args.timeout !== undefined) body['timeout'] = args.timeout;
   if (args.identifier_claim !== undefined)

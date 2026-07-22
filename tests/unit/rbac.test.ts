@@ -1,3 +1,6 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import { registerRbacTools } from '../../src/tools/rbac/index.js';
@@ -30,6 +33,32 @@ function setup() {
     return t;
   };
   return { calls, server, client, tool };
+}
+
+async function setupMcp() {
+  const streamClient = {
+    get: vi.fn(),
+    getList: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+    getText: vi.fn(),
+    postMultipart: vi.fn(),
+  } as any;
+  const server = new McpServer(
+    { name: 'rbac-test', version: '0.0.0' },
+    { capabilities: { tools: {} } },
+  );
+  registerRbacTools(server, streamClient);
+  const client = new Client({ name: 'rbac-test', version: '0.0.0' });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    server.connect(serverTransport),
+    client.connect(clientTransport),
+  ]);
+  return { client, streamClient };
 }
 
 const EXPECTED_TOOLS = [
@@ -202,6 +231,71 @@ describe('local identities', () => {
 });
 
 describe('identity providers', () => {
+  it('coerces string booleans through the MCP input parser', async () => {
+    const { client, streamClient } = await setupMcp();
+    streamClient.post.mockResolvedValue({});
+    const result = await client.callTool({
+      name: 'create_identity_provider',
+      arguments: {
+        type: 'Local',
+        name: 'local2',
+        enabled: 'true',
+        enabled_on_ui: 'false',
+      },
+    });
+    await client.close();
+
+    expect(result.isError).not.toBe(true);
+    expect(streamClient.post).toHaveBeenCalledWith(
+      '/api/v1/security/identity/providers',
+      {
+        type: 'Local',
+        name: 'local2',
+        enabled: true,
+        enabledOnUI: false,
+      },
+    );
+  });
+
+  it('validates Local vs OpenId required fields and the reserved x509 name', async () => {
+    const { client, streamClient } = await setupMcp();
+    streamClient.post.mockResolvedValue({});
+
+    const local = await client.callTool({
+      name: 'create_identity_provider',
+      arguments: {
+        type: 'Local',
+        name: 'local2',
+        enabled: true,
+        enabled_on_ui: false,
+      },
+    });
+    const incompleteOpenId = await client.callTool({
+      name: 'create_identity_provider',
+      arguments: {
+        type: 'OpenId',
+        name: 'oidc',
+        enabled: true,
+        enabled_on_ui: true,
+      },
+    });
+    const reserved = await client.callTool({
+      name: 'create_identity_provider',
+      arguments: {
+        type: 'Local',
+        name: 'X509',
+        enabled: true,
+        enabled_on_ui: true,
+      },
+    });
+    await client.close();
+
+    expect(local.isError).not.toBe(true);
+    expect(incompleteOpenId.isError).toBe(true);
+    expect(reserved.isError).toBe(true);
+    expect(streamClient.post).toHaveBeenCalledTimes(1);
+  });
+
   it('create Local maps enabled_on_ui -> enabledOnUI', async () => {
     const { client, tool } = setup();
     client.post.mockResolvedValue({});

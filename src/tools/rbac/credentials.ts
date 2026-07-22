@@ -77,114 +77,81 @@ function buildTriggers(
   return { onCredentialsExpiration: t.on_credentials_expiration };
 }
 
-const passwordCred = z.object({
-  type: z
-    .literal('password')
-    .describe('Discriminator: password credential (login + password secret).'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable credential name (primary key).'),
-  target: z
-    .enum(CREDENTIALS_TYPE_TARGETS.password)
-    .describe(
-      'MANDATORY. Credential target (immutable after create). One of: ' +
-        `${CREDENTIALS_TYPE_TARGETS.password.join(', ')}.`,
-    ),
-  description: z.string().optional().describe('Optional human description.'),
-  login: z.string().describe('MANDATORY. Login / username.'),
-  password: secretObject
-    .optional()
-    .describe(
-      'Write-only password secret ({clear: "<secret>"}). Required on create to ' +
-        'set the secret; omit on update to keep the stored one.',
-    ),
-  expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
-  triggers: credentialTriggers.optional(),
-});
-
-const rawCred = z.object({
-  type: z
-    .literal('raw')
-    .describe('Discriminator: raw credential (single opaque secret).'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable credential name (primary key).'),
-  target: z
-    .enum(CREDENTIALS_TYPE_TARGETS.raw)
-    .describe(
-      'MANDATORY. Credential target (immutable after create). One of: ' +
-        `${CREDENTIALS_TYPE_TARGETS.raw.join(', ')}.`,
-    ),
-  description: z.string().optional().describe('Optional human description.'),
-  secret: secretObject
-    .optional()
-    .describe(
-      'Write-only secret ({clear: "<secret>"}). Required on create to set the ' +
-        'secret; omit on update to keep the stored one.',
-    ),
-  expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
-  triggers: credentialTriggers.optional(),
-});
-
-const sshCred = z.object({
-  type: z
-    .literal('ssh')
-    .describe('Discriminator: SSH key credential (login + private key).'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable credential name (primary key).'),
-  target: z
-    .enum(CREDENTIALS_TYPE_TARGETS.ssh)
-    .default('ssh')
-    .describe('Credential target (ssh only; defaults to "ssh").'),
-  description: z.string().optional().describe('Optional human description.'),
-  login: z.string().describe('MANDATORY. Login / username.'),
-  key: secretObject
-    .optional()
-    .describe(
-      'Write-only SSH private key ({clear: "<PEM>"}); validated as a parseable ' +
-        'key. Required on create; omit on update to keep the stored key.',
-    ),
-  expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
-  triggers: credentialTriggers.optional(),
-});
-
-const x509Cred = z.object({
-  type: z
-    .literal('x509')
-    .describe('Discriminator: X509 credential (certificate + key pair).'),
-  name: z
-    .string()
-    .describe('MANDATORY. Immutable credential name (primary key).'),
-  target: z
-    .enum(CREDENTIALS_TYPE_TARGETS.x509)
-    .describe(
-      'MANDATORY. Credential target (immutable after create). One of: ' +
-        `${CREDENTIALS_TYPE_TARGETS.x509.join(', ')}.`,
-    ),
-  description: z.string().optional().describe('Optional human description.'),
-  certificate: z
-    .string()
-    .describe(
-      'MANDATORY. Certificate PEM string (goes into store.certificate).',
-    ),
-  key_pair: secretObject
-    .optional()
-    .describe(
-      'Write-only private key ({clear: "<PEM>"}); must match the certificate ' +
-        'public key. REQUIRED on create (the server rejects an x509 credential ' +
-        'with no key). Omit on update to keep the stored key. ' +
-        '(expires is server-managed from the cert notAfter - do not send it.)',
-    ),
-  triggers: credentialTriggers.optional(),
-});
-
-const credentialInput = z.discriminatedUnion('type', [
-  passwordCred,
-  rawCred,
-  sshCred,
-  x509Cred,
-]);
+// A root-level discriminated union is normalized by the MCP SDK to an empty
+// object schema. Publish one flat object and validate type-specific required
+// fields below so clients can discover every input field and its type.
+const credentialInput = z
+  .object({
+    type: z
+      .enum(CREDENTIALS_TYPES)
+      .describe('Discriminator: password | raw | ssh | x509.'),
+    name: z
+      .string()
+      .describe('MANDATORY. Immutable credential name (primary key).'),
+    target: z
+      .enum(CREDENTIALS_TARGETS)
+      .describe(
+        'MANDATORY. Credential target (immutable after create). One of: ' +
+          `${CREDENTIALS_TARGETS.join(', ')}. Valid values depend on type.`,
+      ),
+    description: z.string().optional().describe('Optional human description.'),
+    login: z
+      .string()
+      .optional()
+      .describe('MANDATORY for password and ssh. Login / username.'),
+    password: secretObject
+      .optional()
+      .describe(
+        'Password only. Write-only secret ({clear: "<secret>"}). Required on ' +
+          'create; omit on update to keep the stored one.',
+      ),
+    secret: secretObject
+      .optional()
+      .describe(
+        'Raw only. Write-only secret ({clear: "<secret>"}). Required on ' +
+          'create; omit on update to keep the stored one.',
+      ),
+    key: secretObject
+      .optional()
+      .describe(
+        'SSH only. Write-only private key ({clear: "<PEM>"}). Required on ' +
+          'create; omit on update to keep the stored key.',
+      ),
+    certificate: z
+      .string()
+      .optional()
+      .describe('X509 only. MANDATORY certificate PEM string.'),
+    key_pair: secretObject
+      .optional()
+      .describe(
+        'X509 only. Write-only private key ({clear: "<PEM>"}). Required on ' +
+          'create; omit on update to keep the stored key.',
+      ),
+    expires: z
+      .string()
+      .optional()
+      .describe('Optional ISO-8601 expiry instant.'),
+    triggers: credentialTriggers.optional(),
+  })
+  .superRefine((args, ctx) => {
+    if (
+      (args.type === 'password' || args.type === 'ssh') &&
+      args.login === undefined
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['login'],
+        message: `login is required for type=${args.type}.`,
+      });
+    }
+    if (args.type === 'x509' && args.certificate === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['certificate'],
+        message: 'certificate is required for type=x509.',
+      });
+    }
+  });
 type CredentialInput = z.infer<typeof credentialInput>;
 
 /** Validate (type -> target) and build the on-the-wire credential body. */
@@ -205,7 +172,7 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
 
   switch (args.type) {
     case 'password':
-      body['login'] = args.login;
+      body['login'] = args.login!;
       if (args.password !== undefined) body['password'] = args.password;
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
@@ -214,7 +181,7 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'ssh':
-      body['login'] = args.login;
+      body['login'] = args.login!;
       if (args.key !== undefined) body['key'] = args.key;
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
@@ -224,7 +191,7 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
       // (400). Always emit keyPair: empty {} on update means "keep the stored
       // private key" (the server keeps the previous key pair).
       const store: Record<string, unknown> = {
-        certificate: args.certificate,
+        certificate: args.certificate!,
         keyPair: args.key_pair ?? {},
       };
       body['store'] = store;
