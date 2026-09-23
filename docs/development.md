@@ -24,7 +24,7 @@ Node.js ≥ 22.19 (or Bun 1.x+). TypeScript, ESM.
 | `bun run validate:ci` | Run the full local gate: format → lint → typecheck → build → test → scenarios |
 | `bun run test` | Unit tests (vitest) |
 | `bun run test:e2e` | Live e2e tests against a real instance |
-| `bun run test:e2e:smoke` | A small live e2e smoke subset (CI gate when `STREAM_E2E_*` is set) |
+| `bun run test:e2e:smoke` | A small live e2e smoke subset |
 | `bun run test:scenarios` (`test:llm`) | Free, deterministic LLM-evaluation tier: in-process tool/resource metadata, a keyword tool-ranker, and (when `STREAM_E2E_*` is set) grounded checks that the tools return usable output — no model called |
 | `bun run test:llm:live` | **Paid, opt-in** model-driven smoke: a small Claude model (default Sonnet) drives the MCP and must select the right tool **and** surface usable output |
 

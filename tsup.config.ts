@@ -13,7 +13,8 @@ export default defineConfig({
   target: 'node22',
   outDir: 'dist',
   clean: true,
-  sourcemap: true,
+  // No source map: the published package ships only the bundle.
+  sourcemap: false,
   // Inline knowledge markdown files as string constants.
   // Plain imports (import x from "./file.md") work with this loader.
   loader: { '.md': 'text' },

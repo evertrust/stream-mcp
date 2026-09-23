@@ -81,7 +81,7 @@ export const SEARCH_FIELDS = [
   'permissions',
 ] as const;
 
-// Valid elements for aggregate groupBy[].
+// Accepted aggregate groupBy[] elements.
 export const GROUP_BY_ELEMENTS = [
   'expired',
   'issuer',
