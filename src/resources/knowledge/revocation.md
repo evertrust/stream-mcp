@@ -39,7 +39,7 @@ Errors: `400 CRL-002` (missing/bad `nextRefresh`), `404 CA-003` (no CRLInfo for 
 
 ## OCSP signers (VA)
 
-An `OCSPSigner` is a VA responder identity: a private key (in a keystore) + eventually an OCSP-signing certificate. Lifecycle: **create with a `dn` and `privateKey` → `generate_ocsp_signer_csr` → get the CSR signed by the CA → import the cert (out of band) → assign to a CA.** All OCSP-signer tools require the **VA module** (otherwise the licensed-action wrapper rejects the call).
+An `OCSPSigner` is a VA responder identity: a private key (in a keystore) + eventually an OCSP-signing certificate. Lifecycle: **create with a `dn` and `privateKey` → `generate_ocsp_signer_csr` → get the CSR signed by the CA → import the cert with `update_ocsp_signer({ name, certificate })` → assign to a CA.** All OCSP-signer tools require the **VA module** (otherwise the licensed-action wrapper rejects the call).
 
 You create **one** OCSP signer and `assign_ocsp_signer_to_ca` — there is no "OCSP signer per template". How does an issued cert tell clients where the responder is? Via its **AIA** extension (`aia.ocsp`), which is configured on the **CA** and inherited by issued certs when the certificate template sets `aiaFromCA: true` (see `stream://knowledge/templates`). So the responder URL is wired once (CA `aia.ocsp` + `ocspSigner`) and templates inherit it — never restate OCSP/AIA URLs across multiple templates.
 
@@ -48,7 +48,7 @@ Tools:
 - `list_ocsp_signers` — `GET /api/v1/ocsp/signers`. **Empty/forbidden → 204.**
 - `get_ocsp_signer({ name })` — `GET /api/v1/ocsp/signers/{name}`. 404 → `OCSP-SIGNER-003`.
 - `create_ocsp_signer({ ... })` — `POST /api/v1/ocsp/signers`. 201.
-- `update_ocsp_signer({ ... })` — `PUT /api/v1/ocsp/signers` (full-replace, **name in body**, no path param).
+- `update_ocsp_signer({ name, certificate, ... })` — `PUT /api/v1/ocsp/signers` (full-replace, **name in body**, no path param). `certificate` is the PEM-encoded issued signer certificate to import.
 - `delete_ocsp_signer({ name })` — `DELETE /api/v1/ocsp/signers/{name}`. 204.
 - `generate_ocsp_signer_csr({ name })` — `GET /api/v1/ocsp/signers/{name}/csr`. Returns a **PKCS#10 PEM**, not JSON.
 
@@ -68,7 +68,7 @@ Tools:
 
 Create/import quirks — read carefully:
 
-- **On create, `certificate` is FORCED to empty.** A fresh signer cannot carry a cert even if you send a PEM. Create it with a `dn`, then `generate_ocsp_signer_csr`, then import the issued cert through the CA/import flow (not a revocation tool). `certificate` is **PEM-in / rich-object-out** (decoded object with `dn`, `serial`, `notBefore/notAfter`, `pem`, `keyUsages`, `extendedKeyUsages` incl. `OCSPSigning`, etc.).
+- **On create, `certificate` is FORCED to empty.** A fresh signer cannot carry a cert even if you send a PEM. Create it with a `dn`, then `generate_ocsp_signer_csr`, then import the issued PEM with `update_ocsp_signer`. `certificate` is **PEM-in / rich-object-out** (decoded object with `dn`, `serial`, `notBefore/notAfter`, `pem`, `keyUsages`, `extendedKeyUsages` incl. `OCSPSigning`, etc.).
 - **`dn` and `certificate` are mutually exclusive.** Once a cert exists, `dn` is cleared (omitted). Use `dn` only on a certless signer.
 - Any supplied certificate **must contain the `OCSPSigning` extended key usage**, else `400 OCSP-SIGNER-002`.
 - `update_ocsp_signer` merges (the tool GETs and re-sends unchanged fields; the underlying PUT is full-replace keyed by body `name`). If the previous signer **already has a cert**, `certificate` and `privateKey` (keystore + key name) are **not editable** — only `privateKey.usePSS` and `privateKey.hashAlgorithm` are applied and the existing cert is kept regardless of body. If there is no cert yet, all attributes are editable.
@@ -88,7 +88,7 @@ Create/import quirks — read carefully:
 // -> 201 (certificate omitted; dn present)
 ```
 
-`generate_ocsp_signer_csr` returns a `-----BEGIN CERTIFICATE REQUEST-----` PEM (Content-Type `application/pkcs10`), built from the signer's `dn` + `privateKey`. Typically called on a certless signer; the issued cert is imported afterward.
+`generate_ocsp_signer_csr` returns a `-----BEGIN CERTIFICATE REQUEST-----` PEM (Content-Type `application/pkcs10`), built from the signer's `dn` + `privateKey`. Typically called on a certless signer; the issued cert is imported afterward with `update_ocsp_signer({ name, certificate })`.
 
 Errors: `400 OCSP-SIGNER-002` (invalid signer / bad reference / expired cert / missing OCSPSigning EKU), `403 OCSP-SIGNER-004` (name exists), `403 OCSP-SIGNER-005` (delete blocked — referenced by a CA; `detail` lists CAs), `404 OCSP-SIGNER-003`, `500 OCSP-SIGNER-001`, `500 OCSP-SIGNER-006` (CSR generation/PoP failure).
 
@@ -140,7 +140,7 @@ Trigger errors: `TRIGGER-002` (400 invalid/bad reference), `TRIGGER-003` (404), 
 - **List endpoints 204 = empty OR forbidden.** Never treat 204 as an error; treat as empty.
 - **`get_crl` / `get_ocsp_signer` 404 on missing**, not 204.
 - **`update_crl_next_refresh` past value = silent no-op** (200, unchanged). Pass a future instant.
-- **`create_ocsp_signer` ignores any `certificate`** (forced empty); import the cert later via the CSR flow.
+- **`create_ocsp_signer` ignores any `certificate`** (forced empty); import the issued PEM later with `update_ocsp_signer`.
 - **`update_ocsp_signer`** merges (underlying PUT full-replace by body `name`); cert + key are locked once a cert exists.
 - **`assign_ocsp_signer_to_ca` needs the VA module** and lives in the CA domain (full-replace CA update).
 - **External CRL publishing = a trigger** (`type=external_rl_storage`) wired via the CA's `onCRL*` lists — not a revocation tool.

@@ -280,6 +280,28 @@ describe('OCSP signer CRUD', () => {
     });
   });
 
+  it('update_ocsp_signer accepts a certificate PEM and maps it to certificate', async () => {
+    const { client, invoke } = setup();
+    client.get.mockResolvedValue({
+      id: 'i',
+      name: 'S1',
+      dn: 'CN=S1',
+      privateKey: { keystore: 'A', name: 'B' },
+    });
+    client.put.mockImplementation(async (_p: string, body: any) => body);
+    const certificate =
+      '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----';
+
+    await invoke('update_ocsp_signer', { name: 'S1', certificate });
+
+    expect(client.put).toHaveBeenCalledWith('/api/v1/ocsp/signers', {
+      name: 'S1',
+      dn: 'CN=S1',
+      privateKey: { keystore: 'A', name: 'B' },
+      certificate,
+    });
+  });
+
   it('delete_ocsp_signer enforces the expected_name echo guard', async () => {
     const { client, invoke } = setup();
     const result = await invoke('delete_ocsp_signer', {

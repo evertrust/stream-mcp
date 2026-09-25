@@ -169,6 +169,69 @@ describe('server integration', () => {
     ).toHaveProperty('deleted');
   });
 
+  it('publishes populated schemas for polymorphic RBAC tool inputs', async () => {
+    const tools = await bootAndListTools();
+    const byName = new Map(tools.map((t) => [t.name, t]));
+
+    for (const name of [
+      'create_identity_provider',
+      'update_identity_provider',
+    ]) {
+      const schema = byName.get(name)?.inputSchema as {
+        properties?: Record<string, { type?: string }>;
+      };
+      expect(Object.keys(schema.properties ?? {}), name).toEqual(
+        expect.arrayContaining([
+          'type',
+          'name',
+          'enabled',
+          'enabled_on_ui',
+          'password_policy',
+          'provider_metadata_url',
+          'scope',
+          'credentials',
+          'proxy',
+          'timeout',
+          'identifier_claim',
+          'name_claim',
+        ]),
+      );
+      expect(schema.properties?.enabled?.type, name).toBe('boolean');
+      expect(schema.properties?.enabled_on_ui?.type, name).toBe('boolean');
+    }
+
+    for (const name of ['create_credential', 'update_credential']) {
+      const schema = byName.get(name)?.inputSchema as {
+        properties?: Record<string, unknown>;
+      };
+      expect(Object.keys(schema.properties ?? {}), name).toEqual(
+        expect.arrayContaining([
+          'type',
+          'name',
+          'target',
+          'description',
+          'login',
+          'password',
+          'secret',
+          'key',
+          'certificate',
+          'key_pair',
+          'expires',
+          'triggers',
+        ]),
+      );
+    }
+  });
+
+  it('publishes the OCSP signer certificate import input', async () => {
+    const tools = await bootAndListTools();
+    const schema = tools.find((t) => t.name === 'update_ocsp_signer')
+      ?.inputSchema as {
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(schema.properties?.certificate?.type).toBe('string');
+  });
+
   it('classifies prefix edge cases correctly', async () => {
     const tools = await bootAndListTools();
     const byName = new Map(tools.map((t) => [t.name, t]));
