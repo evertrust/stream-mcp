@@ -9,13 +9,13 @@ Two recurring rules apply throughout:
 
 A keystore is polymorphic on `type` (the discriminator). One of: `software`, `pkcs11`, `aws`, `akv`, `gcp`. The `type` is fixed once created. `credentials` and `proxy`, where present, are **name references to pre-existing objects** (a credentials object / an HTTP proxy object) — not inline values. The server validates those references exist on create/update.
 
-| Type       | Required fields                            | Optional fields                                                     | Secret              |
-| ---------- | ------------------------------------------ | ------------------------------------------------------------------- | ------------------- |
-| `software` | `name`                                     | `description`                                                       | none                |
-| `pkcs11`   | `name`, `library`, `slot`, `rsa_x931_mode` | `pin`, `pool_size`, `user_type`                                     | `pin` (write-only)  |
-| `aws`      | `name`                                     | `region`, `credentials`, `role_arn`, `endpoint`, `proxy`, `timeout` | `credentials` (ref) |
-| `akv`      | `name`, `vault_url`                        | `tenant`, `credentials`, `proxy`, `timeout`                         | `credentials` (ref) |
-| `gcp`      | `name`, `project`, `location`, `key_ring`  | `credentials`, `proxy`, `timeout`                                   | `credentials` (ref) |
+| Type       | Required fields                                            | Optional fields                                                     | Secret              |
+| ---------- | ---------------------------------------------------------- | ------------------------------------------------------------------- | ------------------- |
+| `software` | `name`                                                     | `description`                                                       | none                |
+| `pkcs11`   | `name`, `library`, `slot`, `rsa_x931_mode`, `pin` (create) | `pool_size`, `user_type`, `pin` (update)                            | `pin` (write-only)  |
+| `aws`      | `name`                                                     | `region`, `credentials`, `role_arn`, `endpoint`, `proxy`, `timeout` | `credentials` (ref) |
+| `akv`      | `name`, `vault_url`                                        | `tenant`, `credentials`, `proxy`, `timeout`                         | `credentials` (ref) |
+| `gcp`      | `name`, `project`, `location`, `key_ring`                  | `credentials`, `proxy`, `timeout`                                   | `credentials` (ref) |
 
 Per-type notes:
 

@@ -362,6 +362,43 @@ describe('credentials', () => {
     });
   });
 
+  it('create x509 credential without key_pair -> isError (no POST)', async () => {
+    const { client, tool } = setup();
+    const res = await tool('create_credential').h({
+      type: 'x509',
+      name: 'cert',
+      target: 'stream',
+      certificate: '-----BEGIN CERTIFICATE-----',
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('key_pair');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('raw credential requires secret on create and update', () => {
+    const { tool } = setup();
+    for (const name of ['create_credential', 'update_credential']) {
+      const schema = tool(name).c.inputSchema;
+      const base = { type: 'raw', name: 'gcp', target: 'gcp' };
+      expect(schema.safeParse(base).success, name).toBe(false);
+      expect(
+        schema.safeParse({ ...base, secret: { clear: '{}' } }).success,
+        name,
+      ).toBe(true);
+    }
+  });
+
+  it('password credential accepts a missing password', () => {
+    const { tool } = setup();
+    const parsed = tool('create_credential').c.inputSchema.safeParse({
+      type: 'password',
+      name: 'pw',
+      target: 'rest',
+      login: 'u',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it('maps triggers.on_credentials_expiration -> triggers.onCredentialsExpiration', async () => {
     const { client, tool } = setup();
     client.post.mockResolvedValue({});

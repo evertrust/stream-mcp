@@ -140,6 +140,20 @@ describe('create_keystore', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
+  it('pkcs11: create without pin -> isError (no POST)', async () => {
+    const { client, invoke } = setup();
+    const res = await invoke('create_keystore', {
+      type: 'pkcs11',
+      name: 'hsm',
+      library: '/lib.so',
+      slot: 42,
+      rsa_x931_mode: false,
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('pin');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
   it('aws: maps role_arn -> roleArn and keeps credentials reference', async () => {
     const { client, invoke } = setup();
     (client.post as any).mockResolvedValue({ id: 'x', name: 'aws' });

@@ -69,7 +69,7 @@ const pkcs11Fields = {
     .string()
     .optional()
     .describe(
-      'pkcs11 — optional. PKCS#11 PIN (write-only secret; ask the user). On update omit to retain the existing PIN.',
+      'pkcs11 — MANDATORY on create. PKCS#11 PIN (write-only secret; ask the user). On update omit to retain the existing PIN.',
     ),
   rsa_x931_mode: z
     .boolean()
@@ -202,22 +202,33 @@ function set(out: Record<string, unknown>, key: string, value: unknown): void {
   if (value !== undefined) out[key] = value;
 }
 
+/** Names of the mandatory pkcs11 fields that are missing (pin on create only). */
+function missingPkcs11Fields(args: KeystoreInput, isCreate: boolean): string[] {
+  const required: Record<string, unknown> = {
+    library: args.library,
+    slot: args.slot,
+    rsa_x931_mode: args.rsa_x931_mode,
+    ...(isCreate ? { pin: args.pin } : {}),
+  };
+  return Object.keys(required).filter((k) => required[k] === undefined);
+}
+
 /**
  * Validate type-required fields and build the per-type camelCase wire body
- * (excluding name/type which the caller adds). `includePin` toggles whether the
- * write-only PIN is emitted (create: always when present; update: only when the
- * user supplied a new one).
+ * (excluding name/type which the caller adds). The write-only PIN is emitted
+ * only when supplied; `isCreate` makes it mandatory for pkcs11 (on update an
+ * omitted PIN keeps the stored one).
  */
-function buildTypeBody(args: KeystoreInput): Record<string, unknown> {
+function buildTypeBody(
+  args: KeystoreInput,
+  isCreate: boolean,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   switch (args.type) {
     case 'software':
       break;
     case 'pkcs11': {
-      const missing: string[] = [];
-      if (args.library === undefined) missing.push('library');
-      if (args.slot === undefined) missing.push('slot');
-      if (args.rsa_x931_mode === undefined) missing.push('rsa_x931_mode');
+      const missing = missingPkcs11Fields(args, isCreate);
       if (missing.length > 0) {
         throw new StreamError(422, {
           errorCode: 'KEYSTORE-002',
@@ -304,7 +315,7 @@ export function registerKeystoreTools(
       description:
         'Create a crypto keystore. The body is polymorphic by `type`; mandatory fields depend on `type`:\n' +
         '- software: type, name only.\n' +
-        '- pkcs11: type, name, library, slot, rsa_x931_mode (mandatory); pin, pool_size, user_type (optional).\n' +
+        '- pkcs11: type, name, library, slot, rsa_x931_mode, pin (mandatory); pool_size, user_type (optional).\n' +
         '- aws: type, name (mandatory); region, credentials, role_arn, endpoint, proxy, timeout (all optional).\n' +
         '- akv: type, name, vault_url (mandatory); tenant, credentials, proxy, timeout (optional).\n' +
         '- gcp: type, name, project, location, key_ring (mandatory); credentials, proxy, timeout (optional).\n' +
@@ -319,7 +330,7 @@ export function registerKeystoreTools(
       const body: Record<string, unknown> = {
         type: args.type,
         name: args.name,
-        ...buildTypeBody(args),
+        ...buildTypeBody(args, true),
       };
       set(body, 'description', args.description);
       const result = await client.post<Record<string, unknown>>(
@@ -357,7 +368,7 @@ export function registerKeystoreTools(
     async (args: KeystoreInput) => {
       const overrides: Record<string, unknown> = {
         type: args.type,
-        ...buildTypeBody(args),
+        ...buildTypeBody(args, false),
       };
       set(overrides, 'description', args.description);
       const itemPath = `${KEYSTORE_SPEC.routeCollection}/${encodePathSegment(

@@ -116,12 +116,10 @@ const rawCred = z.object({
         `${CREDENTIALS_TYPE_TARGETS.raw.join(', ')}.`,
     ),
   description: z.string().optional().describe('Optional human description.'),
-  secret: secretObject
-    .optional()
-    .describe(
-      'Write-only secret ({clear: "<secret>"}). Required on create to set the ' +
-        'secret; omit on update to keep the stored one.',
-    ),
+  secret: secretObject.describe(
+    'MANDATORY. Write-only secret ({clear: "<secret>"}). Required on create ' +
+      'and on update.',
+  ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
 });
@@ -187,8 +185,15 @@ const credentialInput = z.discriminatedUnion('type', [
 ]);
 type CredentialInput = z.infer<typeof credentialInput>;
 
-/** Validate (type -> target) and build the on-the-wire credential body. */
-function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
+/**
+ * Validate (type -> target) and build the on-the-wire credential body.
+ * `isCreate` makes the x509 key_pair mandatory (on update an omitted key_pair
+ * keeps the stored key).
+ */
+function buildCredentialBody(
+  args: CredentialInput,
+  isCreate: boolean,
+): Record<string, unknown> {
   const allowed = CREDENTIALS_TYPE_TARGETS[args.type];
   if (!allowed.includes(args.target as CredentialTarget)) {
     throw new StreamError(422, {
@@ -210,7 +215,7 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'raw':
-      if (args.secret !== undefined) body['secret'] = args.secret;
+      body['secret'] = args.secret;
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'ssh':
@@ -219,6 +224,13 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'x509': {
+      if (isCreate && args.key_pair === undefined) {
+        throw new StreamError(422, {
+          errorCode: 'CRED-VALIDATION',
+          message: 'x509 credential requires key_pair on create.',
+          remediation: 'Ask the user for the private key PEM.',
+        });
+      }
       // store.keyPair is a REQUIRED JSON field (no default) - sending
       // store={certificate} alone fails with "/store/keyPair: error.path.missing"
       // (400). Always emit keyPair: empty {} on update means "keep the stored
@@ -318,7 +330,7 @@ export function registerCredentialTools(
       inputSchema: credentialInput,
     },
     async (args) => {
-      const body = buildCredentialBody(args);
+      const body = buildCredentialBody(args, true);
       const result = await client.post<Record<string, unknown>>(ROUTE, body);
       return text(
         buildMutateResponse({
@@ -339,15 +351,16 @@ export function registerCredentialTools(
         'Update a credential (full-replace via PUT, lookup by name). `target` ' +
         'cannot change. Omit a secret to keep the stored one; supply {clear} to ' +
         'rotate it.\n' +
-        'MANDATORY (lookup key + non-secret type fields - ask the user; do not ' +
-        'infer): type, name, target; plus login for password/ssh and ' +
-        'certificate for x509. Secret fields (password/secret/key/key_pair) are ' +
-        'OPTIONAL on update - omit to keep the stored secret.\n' +
+        'MANDATORY (lookup key + type fields - ask the user; do not infer): ' +
+        'type, name, target; plus login for password/ssh, certificate for ' +
+        'x509, and secret for raw (a raw secret is always re-sent). The other ' +
+        'secret fields (password/key/key_pair) are OPTIONAL on update - omit ' +
+        'to keep the stored secret.\n' +
         'Safety tier: mutating-safe\nIMPORTANT: name + target are immutable.',
       inputSchema: credentialInput,
     },
     async (args) => {
-      const overrides = buildCredentialBody(args);
+      const overrides = buildCredentialBody(args, false);
       // target is in immutableKeys; do not let it be changed - keep the value
       // from input (server also rejects a changed target). It is included in
       // overrides which is fine since it equals the existing value if correct.
