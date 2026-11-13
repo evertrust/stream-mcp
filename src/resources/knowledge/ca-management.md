@@ -3,7 +3,7 @@
 Stream models a Certificate Authority as a polymorphic object discriminated by `type`:
 `managed` (Stream holds the private key in a keystore — can self-sign a root, be subordinated, issue certs, generate CRLs) or `external` (only the certificate is imported — Stream tracks trust and downloads/uploads CRLs, cannot issue).
 
-The 12 CA tools: `list_cas`, `get_ca`, `create_ca`, `update_ca`, `delete_ca`, `migrate_ca`, `generate_ca_csr`, `issue_ca`, `enhance_ca`, `generate_crl`, `upload_crl`, and `describe_ca_schema` (returns the live polymorphic body schema — call it before any create/update).
+The 17 CA tools: `list_cas`, `get_ca`, `create_ca`, `update_ca`, `delete_ca`, `migrate_ca`, `generate_ca_csr`, `issue_ca`, `enhance_ca`, `generate_crl`, `upload_crl`, `describe_ca_schema` (returns the live polymorphic body schema — call it before any create/update), and the five CRL series tools (Stream 2.2+, see below).
 
 Universal rules:
 
@@ -174,6 +174,20 @@ Preconditions: target managed (CA-009), ready/issued (else CA-002 "is not ready"
 - **Managed → `generate_crl`** (async): `generate_crl({ name, lazy? })`. Returns **204** and enqueues a background generation; it does NOT return the CRL. Requires a defined `crlPolicy` (else CA-013) and a ready, non-expired CA (CA-016/CA-014).
 - **External → `upload_crl`** (multipart, NOT JSON): the `crl` file part is required and must verify under the CA cert (else CA-010). Optional `nextRefresh` text part is an ISO-8601 instant that must not be in the past (else CA-019). Managed CAs cannot upload (CA-009). This is also how you seed the CRL that `migrate_ca` requires.
 
+## CRL series (Stream 2.2+)
+
+Requires Stream 2.2 or later and the `stream-offline-ca` license module. A CRL series is a set of future-dated CRLs that a managed CA signs in advance. Use it for an offline CA (for example a root that is powered on only for signing ceremonies): sign the CRLs for the coming years in one session, then publish each one when it becomes current. Reference: https://docs.evertrust.fr/stream/2.2/api-ref/x509_ca_crls_preview.html
+
+Flow:
+
+1. **`preview_crl_series`** (read-only): give the CA `name`, `start`, `end`, `overlap` and `validity` (durations such as `"365 days"`). The first CRL runs from `start` for `validity`; each next CRL starts `overlap` before the previous `nextUpdate` and ends `validity` after it. The series stops at the first CRL whose `nextUpdate` reaches `end` or the CA expiration (max 100 CRLs). Nothing is signed or stored.
+2. **`generate_crl_series`**: send the previewed `series` unchanged. The CA key signs the CRLs in an async job; the tool returns the job with `status: pending`. Only one job per CA can run at a time (CA-021).
+3. **`list_crl_series`** (read-only): poll until the job `status` is `succeeded` (or `failed`, with `error.message`). Jobs of every CA are listed, newest first, with `total` and `signed` progress.
+4. **`download_crl_series`** (read-only): get the CRLs of a succeeded job as a base64 zip of DER CRLs, in series order. A job that has not succeeded returns CA-023.
+5. **`delete_crl_series`** (destructive, `expected_id` echo): delete the job and its CRLs when you no longer need them. A pending or running job cannot be deleted (CA-023).
+
+Do not confuse with `generate_crl`, which asks the CA for one CRL now.
+
 ## update_ca is full-replace (cert/key restored by server)
 
 `update_ca` is PUT-on-collection: GET the current record → strip server-managed fields (`id`, `revoked*`) → convert the rich `certificate` object back to its `pem` string → merge your changes → PUT.
@@ -182,4 +196,4 @@ Strong server overrides on an **already-issued** CA: `certificate`, `privateKey`
 
 ## Error codes (selected)
 
-`CA-002` invalid CA / not-ready · `CA-003` not found · `CA-004` already exists (name or duplicate cert) · `CA-005` referenced (cannot delete) · `CA-007` invalid enrollment / public-key mismatch · `CA-008` already issued · `CA-009` invalid type for operation · `CA-010` invalid/empty/unverifiable CRL · `CA-011` invalid migration / missing alt key · `CA-012` external CA needs an existing CRL to migrate · `CA-013` no CRL policy · `CA-014` expired · `CA-015` revoked · `CA-016` not ready · `CA-018` invalid enhance request · `CA-019` invalid CRL upload.
+`CA-002` invalid CA / not-ready · `CA-003` not found · `CA-004` already exists (name or duplicate cert) · `CA-005` referenced (cannot delete) · `CA-007` invalid enrollment / public-key mismatch · `CA-008` already issued · `CA-009` invalid type for operation · `CA-010` invalid/empty/unverifiable CRL · `CA-011` invalid migration / missing alt key · `CA-012` external CA needs an existing CRL to migrate · `CA-013` no CRL policy · `CA-014` expired · `CA-015` revoked · `CA-016` not ready · `CA-018` invalid enhance request · `CA-019` invalid CRL upload · `CA-020` invalid CRL series request · `CA-021` CRL series job already in progress for this CA · `CA-022` CRL series job not found · `CA-023` CRL series job not in a state allowing this operation.

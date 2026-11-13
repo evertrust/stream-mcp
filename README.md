@@ -12,7 +12,7 @@ Most MCP servers hand an LLM a list of tools and leave it to figure out the doma
 
 ## Features
 
-- **157 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`, `open-world`) surfaced as MCP tool annotations.
+- **162 tools across 13 domains**, each annotated with a safety tier (`read-only`, `idempotent`, `additive`, `destructive`, `open-world`) surfaced as MCP tool annotations.
 - **Knowledge catalog**: 15 topic URIs (with auto-generated section URIs for the longer guides) plus `search_docs` / `get_doc` tools.
 - **Two authentication modes**: local account (API headers) and mutual TLS (PEM or PKCS#12). No OIDC.
 - **Query languages**: SCQL (Stream Certificates Query Language) for certificate search/aggregate and SEQL (Stream Events Query Language) for the audit log, documented in `stream://knowledge/query-languages`.
@@ -30,7 +30,7 @@ Tool counts per domain:
 | OpenSSH (SSH module)            |    20 | SSH CAs, templates, certificate search/enroll/revoke, KRLs                 |
 | Timestamping (TSA)             |    16 | TSA authorities, signers (+ CSR), NTP clients                             |
 | Utilities & decoders            |    14 | X.509/CSR/CRL/PKCS#12/OpenSSH decoders, trust chains, EKUs                 |
-| X.509 certificate authorities   |    12 | create-from-scratch, import, CSR, issue, enhance, migrate, CRL upload      |
+| X.509 certificate authorities   |    17 | create-from-scratch, import, CSR, issue, enhance, migrate, CRL series      |
 | Cryptographic storage           |    12 | keystores (software/PKCS#11/AWS/Azure/GCP), keys, HSM introspection        |
 | Revocation (CRL & OCSP)        |    12 | CRL info + published CRL/AIA fetch, OCSP signers (+ CSR), assign-to-CA     |
 | X.509 certificates & lifecycle  |     6 | SCQL search/aggregate, enroll, revoke, requestable templates              |
@@ -115,13 +115,14 @@ The server auto-detects the authentication mode based on which variables are set
 
 These variables are read by the test suite only and never by the server itself:
 
-| Variable                  | Used by                              | Description                                                       |
-| ------------------------- | ------------------------------------ | ---------------------------------------------------------------- |
-| `STREAM_E2E_URL`          | `test:e2e`, `test:scenarios`         | Base URL of the Stream instance for live tests.                  |
-| `STREAM_E2E_API_ID`       | `test:e2e`, `test:scenarios`         | Local account identifier for live tests.                        |
-| `STREAM_E2E_API_KEY`      | `test:e2e`, `test:scenarios`         | Local account password for live tests.                          |
-| `STREAM_LLM_LIVE`         | `test:llm:live`                      | Set to `1` to opt into the paid, model-driven smoke suite.       |
-| `STREAM_LLM_LIVE_MODEL`   | `test:llm:live`                      | Model id for the live smoke suite (default `claude-sonnet-4-5`). |
+| Variable                   | Used by                      | Description                                                      |
+| -------------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| `STREAM_E2E_URL`           | `test:e2e`, `test:scenarios` | Base URL of the Stream instance for live tests.                  |
+| `STREAM_E2E_API_ID`        | `test:e2e`, `test:scenarios` | Local account identifier for live tests.                         |
+| `STREAM_E2E_API_KEY`       | `test:e2e`, `test:scenarios` | Local account password for live tests.                           |
+| `STREAM_E2E_CRL_SERIES_CA` | `test:e2e`                   | Managed CA for the CRL series checks (Stream 2.2+).              |
+| `STREAM_LLM_LIVE`          | `test:llm:live`              | Set to `1` to opt into the paid, model-driven smoke suite.       |
+| `STREAM_LLM_LIVE_MODEL`    | `test:llm:live`              | Model id for the live smoke suite (default `claude-sonnet-4-5`). |
 
 ## MCP client setup
 
@@ -187,7 +188,7 @@ See [docs/authentication.md](docs/authentication.md) for the full step-by-step g
 
 ## Tool catalog overview
 
-The 157 tools are grouped into 13 domains. Each tool ships with explicit guidance for smaller models and clearly distinguishes mandatory from optional inputs. The table above lists per-domain counts; [docs/tools-reference.md](docs/tools-reference.md) has the full per-tool table with safety tiers and one-line descriptions.
+The 162 tools are grouped into 13 domains. Each tool ships with explicit guidance for smaller models and clearly distinguishes mandatory from optional inputs. The table above lists per-domain counts; [docs/tools-reference.md](docs/tools-reference.md) has the full per-tool table with safety tiers and one-line descriptions.
 
 Knowledge resources are exposed at `stream://knowledge/*` URIs. See [docs/knowledge-resources.md](docs/knowledge-resources.md) for the full catalog.
 
@@ -328,7 +329,7 @@ For local setup, project layout, architecture, how to add a tool, and the full t
 | [Installation](docs/installation.md)                | Install methods, configuration, troubleshooting                   |
 | [Authentication](docs/authentication.md)            | Local-account and mTLS modes with environment-variable reference  |
 | [Client setup](docs/client-setup.md)                | Claude Desktop, Claude Code, Cursor, Codex, MCP Inspector         |
-| [Tool reference](docs/tools-reference.md)           | All 157 tools by domain with safety tiers                         |
+| [Tool reference](docs/tools-reference.md)           | All 162 tools by domain with safety tiers                         |
 | [Knowledge resources](docs/knowledge-resources.md)  | `stream://knowledge/*` catalog and the `search_docs` / `get_doc` tools |
 | [Development](docs/development.md)                   | Dev setup, architecture, tests, contributing                      |
 

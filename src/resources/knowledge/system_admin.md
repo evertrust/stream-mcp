@@ -60,6 +60,7 @@ Example: `create_queue { "name": "issuance", "size": 10, "throttle_duration": "1
 Module names map to product entitlements:
 
 - `stream-ca` → certificate authority / issuance (X509 CA tools, EKUs, templates).
+- `stream-offline-ca` → Stream Offline CA appliance (Stream 2.2+; needed by the CRL series tools).
 - `stream-va` → validation authority (OCSP signers).
 - `stream-tsa` → timestamping authority/signers.
 - `stream-ssh` → SSH certificate authority.

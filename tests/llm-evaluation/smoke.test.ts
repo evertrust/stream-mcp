@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { RANK_SCENARIOS } from './scenarios.js';
 import { loadScenarioMetadata, rankTools } from './setup.js';
 
 /**
@@ -11,7 +12,7 @@ describe('Stream MCP scenario smoke (deterministic)', () => {
   it('exposes a coherent tool + resource surface', async () => {
     const { tools, resources } = await loadScenarioMetadata();
 
-    // 151 domain tools + describe_ca_schema + search_docs/get_doc.
+    // 159 domain tools + describe_ca_schema + search_docs/get_doc.
     expect(tools.length).toBeGreaterThanOrEqual(150);
     expect(resources.length).toBeGreaterThanOrEqual(15);
 
@@ -79,4 +80,14 @@ describe('Stream MCP scenario smoke (deterministic)', () => {
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(idx).toBeLessThan(5);
   });
+
+  it.each(RANK_SCENARIOS)(
+    'ranks $expectedTool in the top 5 for: $question',
+    async ({ question, expectedTool }) => {
+      const ranked = await rankTools(question);
+      const idx = ranked.findIndex((r) => r.item.name === expectedTool);
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(idx).toBeLessThan(5);
+    },
+  );
 });

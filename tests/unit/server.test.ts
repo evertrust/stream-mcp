@@ -32,7 +32,7 @@ describe('server integration', () => {
     expect(dupes).toEqual([]);
     // Exact tool count - a drift tripwire. When this changes, update the
     // documented totals in README.md and docs/tools-reference.md to match.
-    expect(names.length).toBe(157);
+    expect(names.length).toBe(162);
   });
 
   it('exposes representative tools from every domain', async () => {
@@ -68,6 +68,7 @@ describe('server integration', () => {
       'create_ssh_ca',
       'enroll_ssh_certificate',
       'generate_krl',
+      'preview_crl_series',
       'search_docs',
       'get_doc',
     ]) {
@@ -113,6 +114,21 @@ describe('server integration', () => {
     expect(byName.get('get_hsm_info')?.annotations?.readOnlyHint).toBe(false);
     expect(byName.get('get_hsm_info')?.annotations?.openWorldHint).toBe(true);
     expect(byName.get('get_hsm_slots')?.annotations?.readOnlyHint).toBe(false);
+    // CRL series: preview/list/download are read-only, generate signs CRLs
+    // (additive), delete is destructive.
+    for (const t of [
+      'preview_crl_series',
+      'list_crl_series',
+      'download_crl_series',
+    ]) {
+      expect(byName.get(t)?.annotations?.readOnlyHint, t).toBe(true);
+    }
+    expect(byName.get('generate_crl_series')?.annotations?.readOnlyHint).toBe(
+      false,
+    );
+    expect(byName.get('delete_crl_series')?.annotations?.destructiveHint).toBe(
+      true,
+    );
     // Integrity check kicks off a background job + persists a report -> not read-only.
     expect(
       byName.get('run_event_integrity_check')?.annotations?.readOnlyHint,

@@ -1,6 +1,6 @@
 # Tool Reference
 
-All 157 tools exposed by the Stream MCP server, grouped by domain. Each tool
+All 162 tools exposed by the Stream MCP server, grouped by domain. Each tool
 carries a **safety tier** derived from its verb, surfaced to clients as MCP
 annotations:
 
@@ -15,9 +15,10 @@ annotations:
 > PUT): omitted fields keep their current values; `clear_fields` nulls one.
 > Exception: `update_trigger` is full-replace.
 
-## X509 Certificate Authorities (12)
+## X509 Certificate Authorities (17)
 
 Stand up, import, and operate certification authorities; issue the CA's own certificate; manage CRL generation/upload.
+The five `*_crl_series` tools need Stream 2.2+ and the `stream-offline-ca` license.
 
 | Tool | Tier | Description |
 |------|------|-------------|
@@ -33,6 +34,11 @@ Stand up, import, and operate certification authorities; issue the CA's own cert
 | `enhance_ca` | additive | Add an alternate (PQC) private key to an already-issued MANAGED Certificate Authority to m |
 | `generate_crl` | additive | Request CRL generation for a MANAGED Certificate Authority (async, fire-and-forget). Retur |
 | `upload_crl` | additive | Upload a CRL for an EXTERNAL Certificate Authority (multipart/form-data). The CRL must ver |
+| `preview_crl_series` | read-only | Compute the dates of a series of future-dated CRLs for a managed CA, without signing or st |
+| `generate_crl_series` | additive | Start an async job that signs a series of future-dated CRLs with the CA key. Send the seri |
+| `list_crl_series` | read-only | List the CRL series jobs of every CA, newest first, with status (pending, running, succeed |
+| `download_crl_series` | read-only | Download the CRLs of a succeeded CRL series job as a base64 zip of DER CRLs, in series ord |
+| `delete_crl_series` | destructive | Delete a CRL series job and its CRLs. A pending or running job cannot be deleted (CA-023). |
 
 ## X509 Certificates & Lifecycle (6)
 
@@ -130,7 +136,7 @@ System configuration, HTTP proxies, queues, license, dictionaries, and config ex
 | `update_queue` | idempotent | Update a queue (full-replace by name). Omitted optional fields are reset; use clear_fields |
 | `delete_queue` | destructive | Delete a queue by name |
 | `get_license_info` | read-only | Get Stream license information: validity, expiration, build version/time, entitled modules |
-| `get_license_modules` | read-only | Get the list of entitled Stream module names (e.g. stream-ca, stream-va, stream-tsa,  |
+| `get_license_modules` | read-only | Get the list of entitled Stream module names (e.g. stream-ca, stream-offline-ca, stream-va |
 | `get_key_types` | read-only | Get the supported asymmetric key types as objects { name, pqc, typ |
 | `get_dn_elements` | read-only | Get the supported Distinguished Name (DN) element names (e.g. CN, OU, O, C, ...) as a stri |
 | `get_san_types` | read-only | Get the supported Subject Alternative Name (SAN) type names (e.g. DNSNAME, RFC822NAME, IPA |
@@ -265,4 +271,4 @@ Search and read the embedded Stream knowledge documents.
 
 ---
 
-**Total: 157 tools.**
+**Total: 162 tools.**

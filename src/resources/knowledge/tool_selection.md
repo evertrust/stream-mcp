@@ -24,6 +24,7 @@ A deterministic "which tool do I use?" playbook for the Stream MCP server. Match
 | Issue an end-entity cert               | `enroll_certificate`                                    | managed CA name, template name, CSR PEM |
 | Revoke an end-entity cert              | `revoke_certificate`                                    | cert PEM **or** (`serial` + `ca`)       |
 | Generate a CRL now                     | `generate_crl`                                          | managed CA with `crlPolicy`             |
+| Sign future CRLs for an offline CA     | `preview_crl_series` → `generate_crl_series`            | Stream 2.2+, `stream-offline-ca` module |
 | Decode an unknown blob                 | `detect_file` → `decode_x509`/`decode_csr`/`decode_crl` | the PEM/DER bytes                       |
 | Stand up a managed CA                  | `create_ca` → `generate_ca_csr` → `issue_ca`            | see CA flow below                       |
 | Change any object                      | `update_<x>` (changed fields only)                      | object name + the fields to change      |
@@ -99,7 +100,7 @@ All managed-CA ops require the `CA` license module and MANAGE permission. To cha
 
 ## Manage revocation (CRL / OCSP)
 
-- **CRL info:** `list_crls`, `get_crl`. Force regeneration: `generate_crl` (needs a managed CA with `crlPolicy`). Import an externally-produced CRL: `upload_crl`. Reschedule next refresh: `update_crl_next_refresh`.
+- **CRL info:** `list_crls`, `get_crl`. Force regeneration: `generate_crl` (needs a managed CA with `crlPolicy`). Import an externally-produced CRL: `upload_crl`. Reschedule next refresh: `update_crl_next_refresh`. Future-dated CRL series for an offline CA (Stream 2.2+): see `stream://knowledge/ca-management`.
 - **OCSP signers** (require `VA` license module): `list_ocsp_signers`, `get_ocsp_signer`, `create_ocsp_signer`, `update_ocsp_signer`, `delete_ocsp_signer`, `generate_ocsp_signer_csr`, and `assign_ocsp_signer_to_ca` to bind a signer to a CA.
 
 ## Decode / inspect a blob
