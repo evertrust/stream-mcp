@@ -357,6 +357,34 @@ describe('create_key', () => {
     });
   });
 
+  it('accepts brainpool, SLH-DSA and RSA-1024 algorithm values', () => {
+    const { tool } = setup();
+    const schema = tool('create_key').c.inputSchema;
+    for (const algorithm of [
+      'ec-brainpoolp256r1',
+      'slhdsa-sha2-128s',
+      'slhdsa-sha2-256fsha512',
+      'rsa-1024',
+    ]) {
+      const parsed = schema.safeParse({
+        name: 'k',
+        keystore: 'soft',
+        algorithm,
+      });
+      expect(parsed.success, algorithm).toBe(true);
+    }
+  });
+
+  it('rejects an unknown algorithm value', () => {
+    const { tool } = setup();
+    const parsed = tool('create_key').c.inputSchema.safeParse({
+      name: 'k',
+      keystore: 'soft',
+      algorithm: 'rsa-512',
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it('warns when GCP returns 204 (null result, key not yet readable)', async () => {
     const { client, invoke } = setup();
     (client.post as any).mockResolvedValue(null);

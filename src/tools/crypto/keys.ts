@@ -172,9 +172,9 @@ export function registerKeyTools(
           .enum(KEY_ALGORITHMS)
           .describe(
             'MANDATORY. Asymmetric algorithm (wire value). Ask the user. ' +
-              'Allowed: rsa-2048, rsa-3072, rsa-4096, rsa-8192, ec-secp256r1, ec-secp384r1, ' +
-              'ec-secp521r1, ed-25519, ed-448, mldsa-44, mldsa-65, mldsa-87, mldsa-44sha512, ' +
-              'mldsa-65sha512, mldsa-87sha512.',
+              'Families: RSA (rsa-*), EC (ec-secp*, ec-brainpool*), EdDSA (ed-*), ' +
+              'ML-DSA (mldsa-*), SLH-DSA (slhdsa-sha2-*). ' +
+              'Call get_key_types for the values this server supports.',
           ),
         extractable: z
           .boolean()

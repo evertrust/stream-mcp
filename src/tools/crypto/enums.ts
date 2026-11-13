@@ -21,6 +21,7 @@ export type KeystoreType = (typeof KEYSTORE_TYPES)[number];
  * KEY-002 for unsupported combinations — surfaced as an isError result).
  */
 export const KEY_ALGORITHMS = [
+  'rsa-1024',
   'rsa-2048',
   'rsa-3072',
   'rsa-4096',
@@ -28,6 +29,9 @@ export const KEY_ALGORITHMS = [
   'ec-secp256r1',
   'ec-secp384r1',
   'ec-secp521r1',
+  'ec-brainpoolp256r1',
+  'ec-brainpoolp384r1',
+  'ec-brainpoolp512r1',
   'ed-25519',
   'ed-448',
   'mldsa-44',
@@ -36,6 +40,18 @@ export const KEY_ALGORITHMS = [
   'mldsa-44sha512',
   'mldsa-65sha512',
   'mldsa-87sha512',
+  'slhdsa-sha2-128s',
+  'slhdsa-sha2-128f',
+  'slhdsa-sha2-192s',
+  'slhdsa-sha2-192f',
+  'slhdsa-sha2-256s',
+  'slhdsa-sha2-256f',
+  'slhdsa-sha2-128ssha256',
+  'slhdsa-sha2-128fsha256',
+  'slhdsa-sha2-192ssha512',
+  'slhdsa-sha2-192fsha512',
+  'slhdsa-sha2-256ssha512',
+  'slhdsa-sha2-256fsha512',
 ] as const;
 export type KeyAlgorithm = (typeof KEY_ALGORITHMS)[number];
 
