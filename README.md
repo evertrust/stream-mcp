@@ -295,7 +295,7 @@ Create a local account for a new operator and return its one-time password.
 | Stream version | Status                                                        |
 | -------------- | ------------------------------------------------------------- |
 | 2.1            | Tested (full feature set)                                     |
-| 2.2            | Tested. The CRL series tools need the `stream-offline-ca` license. |
+| 2.2            | Tested: CA, certificates, templates, CRL series, crypto, RBAC, system. VA, TSA and SSH not yet run on 2.2. The CRL series tools need the `stream-offline-ca` license. |
 | Other          | Untested — the server logs a caution at startup and proceeds. Add a version to `STREAM_WARN_VERSIONS` to downgrade that caution. |
 
 ## What is not supported

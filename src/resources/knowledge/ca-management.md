@@ -49,7 +49,7 @@ Duration strings match `^[0-9]+ *(ms|s|m|h|d|second(s)|minute(s)|hour(s)|day(s)|
 
 **Configure `crldps`, `aia` (incl. `aia.ocsp` — the OCSP responder URL), `policy`, and `ocspSigner` on the CA, then let certificate templates inherit them** via `crldpsFromCA` / `aiaFromCA` / `policyFromCA` (see `stream://knowledge/templates`). Put the revocation/issuer-info wiring here, on the CA, exactly once — not on each template. A single general template then issues correctly under any CA.
 
-`SignerPrivateKey` (`privateKey`/`altPrivateKey`): `keystore` and `name` (key alias) required and must exist. `hashAlgorithm` (e.g. `SHA256`, `SHA384`, `SHA3-384`): set it for RSA and EC keys (Stream 2.2 rejects an EC key without it: CA-002 "Missing hash algorithm"); omit it for EdDSA. `usePSS` only valid on a PKCS11 RSA key.
+`SignerPrivateKey` (`privateKey`/`altPrivateKey`): `keystore` and `name` (key alias) required and must exist. `hashAlgorithm` (e.g. `SHA256`, `SHA384`, `SHA3-384`): required for RSA and EC keys (CA-002 "Missing hash algorithm" otherwise); omit it for EdDSA, ML-DSA and SLH-DSA keys. `usePSS` only valid on a PKCS11 RSA key.
 Hybrid rule: when `altPrivateKey` is set, the primary key must be legacy and the alt key must be PQC; `keyType` then reads e.g. `rsa-2048+mldsa-44`.
 
 ## External-only fields
