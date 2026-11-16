@@ -37,6 +37,11 @@ const SPECIFIC_REMEDIATION: Record<string, string> = {
   'SEC-PERM-001':
     'Insufficient permissions. The authenticated principal lacks the required ' +
     'role/permission for this operation.',
+  'LIC-001': 'Invalid license. Check it with get_license_info.',
+  'LIC-002': 'Expired license. Check it with get_license_info.',
+  'LIC-003':
+    'The license does not entitle the module this operation needs. Check ' +
+    'get_license_modules.',
 };
 
 // Error code suffix -> remediation hint (Stream uses <DOMAIN>-NNN codes).
