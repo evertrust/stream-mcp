@@ -2,7 +2,7 @@
  * Offline tool-selection scenarios for the deterministic ranker (no model, no
  * network). Each prompt must rank its expected tool in the top 5.
  */
-export interface RankScenario {
+interface RankScenario {
   readonly question: string;
   readonly expectedTool: string;
 }
