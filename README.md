@@ -44,7 +44,7 @@ Full per-tool table with safety tiers in [docs/tools-reference.md](docs/tools-re
 ## Prerequisites
 
 - [Bun](https://bun.sh/) 1.x+ (recommended) or Node.js >= 22.19
-- An Evertrust Stream 2.1 instance
+- An Evertrust Stream 2.1 or 2.2 instance
 - A local account (username/password) or a client certificate for that instance
 
 ## Install
@@ -101,7 +101,7 @@ The server auto-detects the authentication mode based on which variables are set
 | `STREAM_TIMEOUT`               | No                  | `30`                 | HTTP request timeout in seconds for standard API calls.                                   |
 | `STREAM_EXPORT_TIMEOUT`        | No                  | `120`                | Timeout in seconds for long-running endpoints such as the AsciiDoc config export.         |
 | `STREAM_LOG_LEVEL`             | No                  | `INFO`               | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`.                                               |
-| `STREAM_TESTED_VERSIONS`       | No                  | `2.1`                | Comma-separated list of Stream versions known to fully work with this build.             |
+| `STREAM_TESTED_VERSIONS`       | No                  | `2.1,2.2`            | Comma-separated list of Stream versions known to fully work with this build.             |
 | `STREAM_WARN_VERSIONS`         | No                  | _(empty)_            | Comma-separated list of versions that are likely to work but emit a warning instead of an "untested" caution. |
 
 ### Security hardening (optional)
@@ -295,6 +295,7 @@ Create a local account for a new operator and return its one-time password.
 | Stream version | Status                                                        |
 | -------------- | ------------------------------------------------------------- |
 | 2.1            | Tested (full feature set)                                     |
+| 2.2            | Tested. The CRL series tools need the `stream-offline-ca` license. |
 | Other          | Untested — the server logs a caution at startup and proceeds. Add a version to `STREAM_WARN_VERSIONS` to downgrade that caution. |
 
 ## What is not supported

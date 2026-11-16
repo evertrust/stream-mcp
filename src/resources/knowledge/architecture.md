@@ -1,4 +1,4 @@
-Stream 2.1 is Evertrust's PKI back-end: a certification authority engine, an OCSP validation authority, an RFC-3161 timestamping authority, and an OpenSSH CA, sharing one config plane (keystores/keys, triggers, RBAC, system). This doc orients you to the object graph and the cross-cutting rules so the per-domain knowledge docs make sense. Read it once before driving any tool.
+Stream (2.1 and 2.2) is Evertrust's PKI back-end: a certification authority engine, an OCSP validation authority, an RFC-3161 timestamping authority, and an OpenSSH CA, sharing one config plane (keystores/keys, triggers, RBAC, system). This doc orients you to the object graph and the cross-cutting rules so the per-domain knowledge docs make sense. Read it once before driving any tool.
 
 This MCP server wraps the Stream REST API (`/api/v1/...`). Every tool name referenced here is real and snake_case.
 

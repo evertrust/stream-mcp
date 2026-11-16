@@ -1,7 +1,7 @@
 {
   "name": "@evertrust/stream-mcp",
   "version": "1.0.2",
-  "description": "MCP server for Evertrust Stream 2.1 (PKI: CA, VA/OCSP, TSA, SSH)",
+  "description": "MCP server for Evertrust Stream 2.1 and 2.2 (PKI: CA, VA/OCSP, TSA, SSH)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
