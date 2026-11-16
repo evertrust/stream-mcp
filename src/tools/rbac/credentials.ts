@@ -187,6 +187,22 @@ const credentialInput = z.discriminatedUnion('type', [
 ]);
 type CredentialInput = z.infer<typeof credentialInput>;
 
+/** On create, a raw credential needs its secret and an x509 one its key pair. */
+function requireCreateSecret(args: CredentialInput): void {
+  const missing =
+    args.type === 'raw' && args.secret === undefined
+      ? { field: 'secret', ask: 'the secret value' }
+      : args.type === 'x509' && args.key_pair === undefined
+        ? { field: 'key_pair', ask: 'the private key PEM' }
+        : undefined;
+  if (missing === undefined) return;
+  throw new StreamError(422, {
+    errorCode: 'CRED-VALIDATION',
+    message: `${args.type} credential requires ${missing.field} on create.`,
+    remediation: `Ask the user for ${missing.ask}.`,
+  });
+}
+
 /**
  * Validate (type -> target) and build the on-the-wire credential body.
  * `isCreate` makes the raw secret and the x509 key_pair mandatory (on update
@@ -209,6 +225,7 @@ function buildCredentialBody(
     target: args.target,
   };
   if (args.description !== undefined) body['description'] = args.description;
+  if (isCreate) requireCreateSecret(args);
 
   switch (args.type) {
     case 'password':
@@ -217,13 +234,6 @@ function buildCredentialBody(
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'raw':
-      if (isCreate && args.secret === undefined) {
-        throw new StreamError(422, {
-          errorCode: 'CRED-VALIDATION',
-          message: 'raw credential requires secret on create.',
-          remediation: 'Ask the user for the secret value.',
-        });
-      }
       if (args.secret !== undefined) body['secret'] = args.secret;
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
@@ -233,13 +243,6 @@ function buildCredentialBody(
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'x509': {
-      if (isCreate && args.key_pair === undefined) {
-        throw new StreamError(422, {
-          errorCode: 'CRED-VALIDATION',
-          message: 'x509 credential requires key_pair on create.',
-          remediation: 'Ask the user for the private key PEM.',
-        });
-      }
       // store.keyPair is a REQUIRED JSON field (no default) - sending
       // store={certificate} alone fails with "/store/keyPair: error.path.missing"
       // (400). Always emit keyPair: empty {} on update means "keep the stored
