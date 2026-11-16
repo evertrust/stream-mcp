@@ -123,7 +123,11 @@ export async function connectGrounded(): Promise<Client> {
       process.env['STREAM_E2E_API_KEY']!,
       process.env['STREAM_E2E_API_IDPROV'] ?? 'local',
     ),
-    { timeout: 30, exportTimeout: 120, verifySsl: true },
+    {
+      timeout: 30,
+      exportTimeout: 120,
+      verifySsl: process.env.STREAM_E2E_TLS_INSECURE !== 'true',
+    },
   );
   return bootClient(real);
 }

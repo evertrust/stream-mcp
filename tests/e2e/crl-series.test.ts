@@ -30,7 +30,11 @@ describe.skipIf(!enabled)('CRL series (live instance, Stream 2.2+)', () => {
     client = new StreamClient(
       url!,
       new LocalAccountAuthProvider(apiId!, apiKey!, 'local'),
-      { timeout: 30, exportTimeout: 60, verifySsl: true },
+      {
+        timeout: 30,
+        exportTimeout: 60,
+        verifySsl: process.env.STREAM_E2E_TLS_INSECURE !== 'true',
+      },
     );
   });
 

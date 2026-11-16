@@ -32,7 +32,11 @@ describe.skipIf(!enabled)(
     const client = new StreamClient(
       url!,
       new LocalAccountAuthProvider(apiId!, apiKey!, 'local'),
-      { timeout: 30, exportTimeout: 60, verifySsl: true },
+      {
+        timeout: 30,
+        exportTimeout: 60,
+        verifySsl: process.env.STREAM_E2E_TLS_INSECURE !== 'true',
+      },
     );
 
     afterAll(async () => {

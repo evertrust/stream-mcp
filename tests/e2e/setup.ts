@@ -56,7 +56,11 @@ export function getLiveLicense(): Promise<LicenseInfo | null> {
     const client = new StreamClient(
       url,
       new LocalAccountAuthProvider(apiId, apiKey, 'local'),
-      { timeout: 30, exportTimeout: 60, verifySsl: true },
+      {
+        timeout: 30,
+        exportTimeout: 60,
+        verifySsl: process.env.STREAM_E2E_TLS_INSECURE !== 'true',
+      },
     );
     try {
       const info = await client.get<Partial<LicenseInfo>>('/api/v1/licenses');
