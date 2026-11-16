@@ -30,6 +30,7 @@ export const KEY_ALGORITHMS = [
   'ec-secp384r1',
   'ec-secp521r1',
   'ec-brainpoolp256r1',
+  'ec-brainpoolp320r1',
   'ec-brainpoolp384r1',
   'ec-brainpoolp512r1',
   'ed-25519',

@@ -376,6 +376,7 @@ describe('create_key', () => {
     const schema = tool('create_key').c.inputSchema;
     for (const algorithm of [
       'ec-brainpoolp256r1',
+      'ec-brainpoolp320r1',
       'slhdsa-sha2-128s',
       'slhdsa-sha2-256fsha512',
       'rsa-1024',

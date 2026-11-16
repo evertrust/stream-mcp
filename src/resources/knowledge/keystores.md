@@ -78,7 +78,7 @@ Keys are asymmetric private keys generated **in** a keystore. No private materia
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RSA                    | `rsa-1024`, `rsa-2048`, `rsa-3072`, `rsa-4096`, `rsa-8192`                                                                                                 |
 | EC                     | `ec-secp256r1`, `ec-secp384r1`, `ec-secp521r1`                                                                                                             |
-| EC Brainpool           | `ec-brainpoolp256r1`, `ec-brainpoolp384r1`, `ec-brainpoolp512r1`                                                                                           |
+| EC Brainpool           | `ec-brainpoolp256r1`, `ec-brainpoolp320r1`, `ec-brainpoolp384r1`, `ec-brainpoolp512r1`                                                                     |
 | EdDSA                  | `ed-25519`, `ed-448`                                                                                                                                       |
 | ML-DSA (PQC)           | `mldsa-44`, `mldsa-65`, `mldsa-87`                                                                                                                         |
 | ML-DSA hash-then-sign  | `mldsa-44sha512`, `mldsa-65sha512`, `mldsa-87sha512`                                                                                                       |
