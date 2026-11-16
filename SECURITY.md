@@ -35,7 +35,7 @@ to make the server perform an unintended privileged operation.
 
 ## Supported versions
 
-The server targets **Evertrust Stream 2.1**. Only the latest published release
+The server targets **Evertrust Stream 2.1 and 2.2**. Only the latest published release
 of this package receives security fixes.
 
 ## Handling of secrets

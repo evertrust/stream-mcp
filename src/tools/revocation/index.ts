@@ -1,7 +1,7 @@
 /**
  * Revocation domain tool registration.
  *
- * Tools (10):
+ * Tools (12):
  *   CRL:   list_crls, get_crl, update_crl_next_refresh
  *   OCSP:  list_ocsp_signers, get_ocsp_signer, create_ocsp_signer,
  *          update_ocsp_signer, delete_ocsp_signer, generate_ocsp_signer_csr,

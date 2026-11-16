@@ -62,7 +62,7 @@ const CORE_RESOURCES: readonly ResourceEntry[] = [
   {
     name: 'architecture',
     uri: 'stream://knowledge/architecture',
-    description: 'Stream 2.1 modules and object model overview',
+    description: 'Stream 2.1 and 2.2 modules and object model overview',
     content: architectureContent,
     priority: 0.8,
   },

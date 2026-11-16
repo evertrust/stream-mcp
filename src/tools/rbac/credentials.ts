@@ -119,8 +119,8 @@ const rawCred = z.object({
   secret: secretObject
     .optional()
     .describe(
-      'Write-only secret ({clear: "<secret>"}). Required on create to set the ' +
-        'secret; omit on update to keep the stored one.',
+      'Write-only secret ({clear: "<secret>"}). MANDATORY on create; omit on ' +
+        'update to keep the stored one.',
     ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
@@ -187,8 +187,31 @@ const credentialInput = z.discriminatedUnion('type', [
 ]);
 type CredentialInput = z.infer<typeof credentialInput>;
 
-/** Validate (type -> target) and build the on-the-wire credential body. */
-function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
+/** On create, a raw credential needs its secret and an x509 one its key pair. */
+function requireCreateSecret(args: CredentialInput): void {
+  const missing =
+    args.type === 'raw' && args.secret === undefined
+      ? { field: 'secret', ask: 'the secret value' }
+      : args.type === 'x509' && args.key_pair === undefined
+        ? { field: 'key_pair', ask: 'the private key PEM' }
+        : undefined;
+  if (missing === undefined) return;
+  throw new StreamError(422, {
+    errorCode: 'CRED-VALIDATION',
+    message: `${args.type} credential requires ${missing.field} on create.`,
+    remediation: `Ask the user for ${missing.ask}.`,
+  });
+}
+
+/**
+ * Validate (type -> target) and build the on-the-wire credential body.
+ * `isCreate` makes the raw secret and the x509 key_pair mandatory (on update
+ * an omitted secret keeps the stored one).
+ */
+function buildCredentialBody(
+  args: CredentialInput,
+  isCreate: boolean,
+): Record<string, unknown> {
   const allowed = CREDENTIALS_TYPE_TARGETS[args.type];
   if (!allowed.includes(args.target as CredentialTarget)) {
     throw new StreamError(422, {
@@ -202,6 +225,7 @@ function buildCredentialBody(args: CredentialInput): Record<string, unknown> {
     target: args.target,
   };
   if (args.description !== undefined) body['description'] = args.description;
+  if (isCreate) requireCreateSecret(args);
 
   switch (args.type) {
     case 'password':
@@ -318,7 +342,7 @@ export function registerCredentialTools(
       inputSchema: credentialInput,
     },
     async (args) => {
-      const body = buildCredentialBody(args);
+      const body = buildCredentialBody(args, true);
       const result = await client.post<Record<string, unknown>>(ROUTE, body);
       return text(
         buildMutateResponse({
@@ -339,15 +363,15 @@ export function registerCredentialTools(
         'Update a credential (full-replace via PUT, lookup by name). `target` ' +
         'cannot change. Omit a secret to keep the stored one; supply {clear} to ' +
         'rotate it.\n' +
-        'MANDATORY (lookup key + non-secret type fields - ask the user; do not ' +
-        'infer): type, name, target; plus login for password/ssh and ' +
-        'certificate for x509. Secret fields (password/secret/key/key_pair) are ' +
-        'OPTIONAL on update - omit to keep the stored secret.\n' +
+        'MANDATORY (lookup key + type fields - ask the user; do not infer): ' +
+        'type, name, target; plus login for password/ssh, certificate for ' +
+        'x509. Secret fields (password/secret/key/key_pair) are OPTIONAL on ' +
+        'update - omit to keep the stored secret.\n' +
         'Safety tier: mutating-safe\nIMPORTANT: name + target are immutable.',
       inputSchema: credentialInput,
     },
     async (args) => {
-      const overrides = buildCredentialBody(args);
+      const overrides = buildCredentialBody(args, false);
       // target is in immutableKeys; do not let it be changed - keep the value
       // from input (server also rejects a changed target). It is included in
       // overrides which is fine since it equals the existing value if correct.

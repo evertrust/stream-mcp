@@ -9,13 +9,13 @@ Two recurring rules apply throughout:
 
 A keystore is polymorphic on `type` (the discriminator). One of: `software`, `pkcs11`, `aws`, `akv`, `gcp`. The `type` is fixed once created. `credentials` and `proxy`, where present, are **name references to pre-existing objects** (a credentials object / an HTTP proxy object) — not inline values. The server validates those references exist on create/update.
 
-| Type       | Required fields                            | Optional fields                                                     | Secret              |
-| ---------- | ------------------------------------------ | ------------------------------------------------------------------- | ------------------- |
-| `software` | `name`                                     | `description`                                                       | none                |
-| `pkcs11`   | `name`, `library`, `slot`, `rsa_x931_mode` | `pin`, `pool_size`, `user_type`                                     | `pin` (write-only)  |
-| `aws`      | `name`                                     | `region`, `credentials`, `role_arn`, `endpoint`, `proxy`, `timeout` | `credentials` (ref) |
-| `akv`      | `name`, `vault_url`                        | `tenant`, `credentials`, `proxy`, `timeout`                         | `credentials` (ref) |
-| `gcp`      | `name`, `project`, `location`, `key_ring`  | `credentials`, `proxy`, `timeout`                                   | `credentials` (ref) |
+| Type       | Required fields                                            | Optional fields                                                     | Secret              |
+| ---------- | ---------------------------------------------------------- | ------------------------------------------------------------------- | ------------------- |
+| `software` | `name`                                                     | `description`                                                       | none                |
+| `pkcs11`   | `name`, `library`, `slot`, `rsa_x931_mode`, `pin` (create) | `pool_size`, `user_type`, `pin` (update)                            | `pin` (write-only)  |
+| `aws`      | `name`                                                     | `region`, `credentials`, `role_arn`, `endpoint`, `proxy`, `timeout` | `credentials` (ref) |
+| `akv`      | `name`, `vault_url`                                        | `tenant`, `credentials`, `proxy`, `timeout`                         | `credentials` (ref) |
+| `gcp`      | `name`, `project`, `location`, `key_ring`                  | `credentials`, `proxy`, `timeout`                                   | `credentials` (ref) |
 
 Per-type notes:
 
@@ -74,15 +74,18 @@ Keys are asymmetric private keys generated **in** a keystore. No private materia
 
 `create_key` takes an `algorithm` field whose value is a key algorithm wire value:
 
-| Family                | Values                                               |
-| --------------------- | ---------------------------------------------------- |
-| RSA                   | `rsa-2048`, `rsa-3072`, `rsa-4096`, `rsa-8192`       |
-| EC                    | `ec-secp256r1`, `ec-secp384r1`, `ec-secp521r1`       |
-| EdDSA                 | `ed-25519`, `ed-448`                                 |
-| ML-DSA (PQC)          | `mldsa-44`, `mldsa-65`, `mldsa-87`                   |
-| ML-DSA hash-then-sign | `mldsa-44sha512`, `mldsa-65sha512`, `mldsa-87sha512` |
+| Family                 | Values                                                                                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RSA                    | `rsa-1024`, `rsa-2048`, `rsa-3072`, `rsa-4096`, `rsa-8192`                                                                                                 |
+| EC                     | `ec-secp256r1`, `ec-secp384r1`, `ec-secp521r1`                                                                                                             |
+| EC Brainpool           | `ec-brainpoolp256r1`, `ec-brainpoolp320r1`, `ec-brainpoolp384r1`, `ec-brainpoolp512r1`                                                                     |
+| EdDSA                  | `ed-25519`, `ed-448`                                                                                                                                       |
+| ML-DSA (PQC)           | `mldsa-44`, `mldsa-65`, `mldsa-87`                                                                                                                         |
+| ML-DSA hash-then-sign  | `mldsa-44sha512`, `mldsa-65sha512`, `mldsa-87sha512`                                                                                                       |
+| SLH-DSA (PQC)          | `slhdsa-sha2-128s`, `slhdsa-sha2-128f`, `slhdsa-sha2-192s`, `slhdsa-sha2-192f`, `slhdsa-sha2-256s`, `slhdsa-sha2-256f`                                     |
+| SLH-DSA hash-then-sign | `slhdsa-sha2-128ssha256`, `slhdsa-sha2-128fsha256`, `slhdsa-sha2-192ssha512`, `slhdsa-sha2-192fsha512`, `slhdsa-sha2-256ssha512`, `slhdsa-sha2-256fsha512` |
 
-Not every algorithm is supported by every keystore type — the server returns `KEY-002` (400) for an unsupported combination. Notably **AWS** supports only `rsa-2048/3072/4096` and `ec-secp256r1/secp384r1/secp521r1`. `software` accepts any of the above; `pkcs11` depends on the HSM/driver.
+Not every algorithm is supported by every keystore type — the server returns `KEY-002` (400) for an unsupported combination. Notably **AWS** supports only `rsa-2048/3072/4096` and `ec-secp256r1/secp384r1/secp521r1`. `pkcs11` depends on the HSM/driver. Call `get_key_types` for the algorithms this server supports.
 
 ### Key tools
 

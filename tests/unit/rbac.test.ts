@@ -362,6 +362,67 @@ describe('credentials', () => {
     });
   });
 
+  it('create x509 credential without key_pair -> isError (no POST)', async () => {
+    const { client, tool } = setup();
+    const res = await tool('create_credential').h({
+      type: 'x509',
+      name: 'cert',
+      target: 'stream',
+      certificate: '-----BEGIN CERTIFICATE-----',
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('key_pair');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('create raw credential without secret -> isError (no POST)', async () => {
+    const { client, tool } = setup();
+    const res = await tool('create_credential').h({
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('secret');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('update raw credential without secret omits it from the PUT', async () => {
+    const { client, tool } = setup();
+    client.get.mockResolvedValue({
+      id: 'x',
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+      secret: {},
+    });
+    client.put.mockResolvedValue({});
+    const res = await tool('update_credential').h({
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+      description: 'rotated later',
+    });
+    expect(res.isError).toBeFalsy();
+    expect(client.put).toHaveBeenCalledWith('/api/v1/security/credentials', {
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+      description: 'rotated later',
+    });
+  });
+
+  it('password credential accepts a missing password', () => {
+    const { tool } = setup();
+    const parsed = tool('create_credential').c.inputSchema.safeParse({
+      type: 'password',
+      name: 'pw',
+      target: 'rest',
+      login: 'u',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it('maps triggers.on_credentials_expiration -> triggers.onCredentialsExpiration', async () => {
     const { client, tool } = setup();
     client.post.mockResolvedValue({});

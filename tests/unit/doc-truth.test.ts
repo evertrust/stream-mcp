@@ -25,7 +25,7 @@ const KNOWLEDGE_DIR = join(__dirname, '../../src/resources/knowledge');
 
 // Verb prefixes that make a bare backticked identifier a tool reference.
 const TOOL_VERB_RE =
-  /^(list|get|create|update|delete|search|aggregate|enroll|revoke|decode|describe|detect|extract|upsert|generate|assign|reset|migrate|enhance|issue|upload|find|export)_[a-z0-9_]+$/;
+  /^(list|get|create|update|delete|search|aggregate|enroll|revoke|decode|describe|detect|extract|upsert|generate|assign|reset|migrate|enhance|issue|upload|find|export|preview|download)_[a-z0-9_]+$/;
 
 // Backticked snake_case identifiers that legitimately are NOT tool names
 // (parameter names, wire fields, env vars in prose). Add here ONLY with a

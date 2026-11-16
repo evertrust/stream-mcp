@@ -17,7 +17,7 @@ const settingsSchema = z.object({
   timeout: z.coerce.number().int().positive().default(30),
   exportTimeout: z.coerce.number().int().positive().default(120),
   logLevel: z.string().default('INFO'),
-  testedVersions: z.array(z.string()).default(['2.1']),
+  testedVersions: z.array(z.string()).default(['2.1', '2.2']),
   warnVersions: z.array(z.string()).default([]),
 });
 

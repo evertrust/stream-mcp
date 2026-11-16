@@ -1,5 +1,5 @@
 /**
- * SSH domain registration. Wires all 19 tools:
+ * SSH domain registration. Wires all 20 tools:
  *   CAs:          list_ssh_cas, get_ssh_ca, create_ssh_ca, update_ssh_ca,
  *                 delete_ssh_ca
  *   KRL:          generate_krl, list_krls, get_krl

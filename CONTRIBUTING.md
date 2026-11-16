@@ -6,7 +6,7 @@ Thanks for contributing to `@evertrust/stream-mcp`.
 
 - [Bun](https://bun.sh/) 1.x (the project's package manager and test runner) or
   Node.js >= 22.19.
-- Access to an Evertrust Stream 2.1 instance for the optional live/E2E tiers.
+- Access to an Evertrust Stream 2.1 or 2.2 instance for the optional live/E2E tiers.
 
 See [docs/development.md](docs/development.md) for the full development guide
 (architecture and the test tiers).

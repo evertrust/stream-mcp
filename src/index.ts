@@ -13,7 +13,7 @@ import { registerAllTools } from './tools/registry.js';
 const logger = getLogger('stream_mcp.server');
 
 const SERVER_INSTRUCTIONS = [
-  'MCP server for Evertrust Stream 2.1 (PKI: X509 CA + certificates, VA/OCSP,',
+  'MCP server for Evertrust Stream 2.1 and 2.2 (PKI: X509 CA + certificates, VA/OCSP,',
   'TSA, SSH, keystores, triggers, RBAC, system config).',
   '',
   'Core rules:',

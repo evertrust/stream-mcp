@@ -99,6 +99,7 @@ Gated by `STREAM_E2E_*` (loaded from a git-ignored `.env.local`):
 STREAM_E2E_URL=https://stream.qa.example.com
 STREAM_E2E_API_ID=...
 STREAM_E2E_API_KEY=...
+# STREAM_E2E_TLS_INSECURE=true   # self-signed test instance only
 ```
 
 ```bash

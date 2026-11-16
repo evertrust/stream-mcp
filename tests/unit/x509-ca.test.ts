@@ -26,7 +26,9 @@ function setup() {
     patch: vi.fn(),
     delete: vi.fn(),
     getText: vi.fn(),
+    getBytes: vi.fn(),
     postMultipart: vi.fn(),
+    exportTimeout: 120000,
   };
   registerX509CaTools(server, client as any);
   const byName = (name: string): RegisteredTool => {
@@ -48,7 +50,7 @@ const EXTERNAL_CERT =
   '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----';
 
 describe('x509-ca registration', () => {
-  it('registers all 11 required tools (+ describe helper)', () => {
+  it('registers all 16 required tools (+ describe helper)', () => {
     const { calls } = setup();
     const names = calls.map((c) => c.n).sort();
     for (const t of [
@@ -63,10 +65,16 @@ describe('x509-ca registration', () => {
       'enhance_ca',
       'generate_crl',
       'upload_crl',
+      'preview_crl_series',
+      'generate_crl_series',
+      'list_crl_series',
+      'download_crl_series',
+      'delete_crl_series',
     ]) {
       expect(names, `missing ${t}`).toContain(t);
     }
     expect(names).toContain('describe_ca_schema');
+    expect(names.length).toBe(17);
   });
 });
 
@@ -554,5 +562,150 @@ describe('upload_crl', () => {
     });
     expect(res.isError).toBe(true);
     expect(client.postMultipart).not.toHaveBeenCalled();
+  });
+});
+
+describe('CRL series (Stream 2.2+)', () => {
+  const SERIES = [
+    { thisUpdate: '2026-11-10T00:00:00Z', nextUpdate: '2027-11-10T00:00:00Z' },
+    { thisUpdate: '2027-09-10T00:00:00Z', nextUpdate: '2028-11-10T00:00:00Z' },
+  ];
+  const JOB_ID = '9b2f3c1e-7d4a-4f0b-8c55-2a6e1d9f0b13';
+
+  it('preview_crl_series POSTs the parameters and returns the full series', async () => {
+    const { client, byName } = setup();
+    client.post.mockResolvedValue(SERIES);
+    const out = JSON.parse(
+      await textOf(
+        byName('preview_crl_series').h({
+          name: 'Offline Root',
+          start: '2026-11-10T00:00:00Z',
+          end: '2036-11-10T00:00:00Z',
+          overlap: '61 days',
+          validity: '365 days',
+        }),
+      ),
+    );
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/x509/cas/Offline%20Root/crls/preview',
+      {
+        start: '2026-11-10T00:00:00Z',
+        end: '2036-11-10T00:00:00Z',
+        overlap: '61 days',
+        validity: '365 days',
+      },
+    );
+    expect(out).toEqual({ ca: 'Offline Root', count: 2, series: SERIES });
+  });
+
+  it('preview_crl_series rejects a malformed duration', () => {
+    const { byName } = setup();
+    const parsed = byName('preview_crl_series').c.inputSchema.safeParse({
+      name: 'Root',
+      start: '2026-11-10T00:00:00Z',
+      end: '2036-11-10T00:00:00Z',
+      overlap: '61',
+      validity: '365 days',
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('generate_crl_series POSTs the series array and returns the queued job', async () => {
+    const { client, byName } = setup();
+    client.post.mockResolvedValue({
+      id: JOB_ID,
+      ca: 'Root',
+      status: 'pending',
+    });
+    const out = JSON.parse(
+      await textOf(
+        byName('generate_crl_series').h({ name: 'Root', series: SERIES }),
+      ),
+    );
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/x509/cas/Root/crls',
+      SERIES,
+    );
+    expect(out.status).toBe('queued');
+    expect(out.data.id).toBe(JOB_ID);
+  });
+
+  it('generate_crl_series accepts 1 to 100 CRLs', () => {
+    const { byName } = setup();
+    const schema = byName('generate_crl_series').c.inputSchema;
+    expect(schema.safeParse({ name: 'Root', series: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({ name: 'Root', series: Array(101).fill(SERIES[0]) })
+        .success,
+    ).toBe(false);
+    expect(schema.safeParse({ name: 'Root', series: SERIES }).success).toBe(
+      true,
+    );
+  });
+
+  it('list_crl_series GETs the job collection', async () => {
+    const { client, byName } = setup();
+    client.getList.mockResolvedValue([{ id: JOB_ID, ca: 'Root' }]);
+    const out = JSON.parse(
+      await textOf(byName('list_crl_series').h({ max_items: 50 })),
+    );
+    expect(client.getList).toHaveBeenCalledWith('/api/v1/x509/crlseries');
+    expect(out.items[0].id).toBe(JOB_ID);
+    expect(out.kind).toBe('crl_series');
+  });
+
+  it('download_crl_series GETs the zip and returns it as base64', async () => {
+    const { client, byName } = setup();
+    client.getBytes.mockResolvedValue(new TextEncoder().encode('PK').buffer);
+    const out = JSON.parse(
+      await textOf(byName('download_crl_series').h({ id: JOB_ID })),
+    );
+    expect(client.getBytes).toHaveBeenCalledWith(
+      `/api/v1/x509/crlseries/${JOB_ID}`,
+      120000,
+    );
+    expect(out).toEqual({
+      id: JOB_ID,
+      contentType: 'application/zip',
+      base64: Buffer.from('PK').toString('base64'),
+    });
+  });
+
+  it('delete_crl_series enforces the expected_id echo guard', async () => {
+    const { client, byName } = setup();
+    const out = await textOf(
+      byName('delete_crl_series').h({ id: JOB_ID, expected_id: 'WRONG' }),
+    );
+    expect(out).toContain('Safety check failed');
+    expect(client.delete).not.toHaveBeenCalled();
+  });
+
+  it('delete_crl_series DELETEs the job with a matching echo', async () => {
+    const { client, byName } = setup();
+    client.delete.mockResolvedValue(null);
+    await byName('delete_crl_series').h({ id: JOB_ID, expected_id: JOB_ID });
+    expect(client.delete).toHaveBeenCalledWith(
+      `/api/v1/x509/crlseries/${JOB_ID}`,
+    );
+  });
+
+  it('marks preview, list and download read-only and delete destructive', () => {
+    const { byName } = setup();
+    for (const t of [
+      'preview_crl_series',
+      'list_crl_series',
+      'download_crl_series',
+    ]) {
+      expect(byName(t).c.annotations.readOnlyHint, t).toBe(true);
+    }
+    expect(byName('generate_crl_series').c.annotations.readOnlyHint).toBe(
+      false,
+    );
+    expect(byName('generate_crl_series').c.annotations.destructiveHint).toBe(
+      false,
+    );
+    expect(byName('delete_crl_series').c.annotations.destructiveHint).toBe(
+      true,
+    );
   });
 });

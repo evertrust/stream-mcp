@@ -39,6 +39,19 @@ describe('parseErrorResponse', () => {
     expect(err.remediation).toMatch(/STREAM_API_ID/);
   });
 
+  it('adds a license remediation for LIC-003, not the -003 "not found" hint', () => {
+    const err = parseErrorResponse(
+      403,
+      JSON.stringify({
+        error: 'LIC-003',
+        message: 'Module is not entitled',
+        status: 403,
+      }),
+    );
+    expect(err.remediation).toMatch(/get_license_modules/);
+    expect(err.remediation).not.toMatch(/Not found/i);
+  });
+
   it('falls back gracefully for a non-JSON body', () => {
     const err = parseErrorResponse(500, 'Internal Server Error');
     expect(err.statusCode).toBe(500);

@@ -140,6 +140,20 @@ describe('create_keystore', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
+  it('pkcs11: create without pin -> isError (no POST)', async () => {
+    const { client, invoke } = setup();
+    const res = await invoke('create_keystore', {
+      type: 'pkcs11',
+      name: 'hsm',
+      library: '/lib.so',
+      slot: 42,
+      rsa_x931_mode: false,
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('pin');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
   it('aws: maps role_arn -> roleArn and keeps credentials reference', async () => {
     const { client, invoke } = setup();
     (client.post as any).mockResolvedValue({ id: 'x', name: 'aws' });
@@ -355,6 +369,35 @@ describe('create_key', () => {
       extractable: true,
       hardwareProtected: false,
     });
+  });
+
+  it('accepts brainpool, SLH-DSA and RSA-1024 algorithm values', () => {
+    const { tool } = setup();
+    const schema = tool('create_key').c.inputSchema;
+    for (const algorithm of [
+      'ec-brainpoolp256r1',
+      'ec-brainpoolp320r1',
+      'slhdsa-sha2-128s',
+      'slhdsa-sha2-256fsha512',
+      'rsa-1024',
+    ]) {
+      const parsed = schema.safeParse({
+        name: 'k',
+        keystore: 'soft',
+        algorithm,
+      });
+      expect(parsed.success, algorithm).toBe(true);
+    }
+  });
+
+  it('rejects an unknown algorithm value', () => {
+    const { tool } = setup();
+    const parsed = tool('create_key').c.inputSchema.safeParse({
+      name: 'k',
+      keystore: 'soft',
+      algorithm: 'rsa-512',
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it('warns when GCP returns 204 (null result, key not yet readable)', async () => {

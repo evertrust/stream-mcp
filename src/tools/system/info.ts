@@ -48,7 +48,7 @@ export function registerSystemInfoTools(
     'get_license_modules',
     {
       description:
-        'Get the list of entitled Stream module names (e.g. stream-ca, stream-va, stream-tsa, stream-ssh) in declaration order. No permission required. Empty list if none entitled.\n' +
+        'Get the list of entitled Stream module names (e.g. stream-ca, stream-offline-ca, stream-va, stream-tsa, stream-ssh) in declaration order. No permission required. Empty list if none entitled.\n' +
         'Safety tier: read-only',
       inputSchema: z.object({}),
     },

@@ -38,7 +38,7 @@ describe('loadSettings', () => {
     expect((s as Record<string, unknown>)['e2eApiId']).toBeUndefined();
   });
 
-  it('defaults tested versions to 2.1', () => {
-    expect(loadSettings({}).testedVersions).toEqual(['2.1']);
+  it('defaults tested versions to 2.1 and 2.2', () => {
+    expect(loadSettings({}).testedVersions).toEqual(['2.1', '2.2']);
   });
 });
