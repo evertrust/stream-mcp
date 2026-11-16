@@ -49,7 +49,7 @@ Duration strings match `^[0-9]+ *(ms|s|m|h|d|second(s)|minute(s)|hour(s)|day(s)|
 
 **Configure `crldps`, `aia` (incl. `aia.ocsp` — the OCSP responder URL), `policy`, and `ocspSigner` on the CA, then let certificate templates inherit them** via `crldpsFromCA` / `aiaFromCA` / `policyFromCA` (see `stream://knowledge/templates`). Put the revocation/issuer-info wiring here, on the CA, exactly once — not on each template. A single general template then issues correctly under any CA.
 
-`SignerPrivateKey` (`privateKey`/`altPrivateKey`): `keystore` and `name` (key alias) required and must exist. `hashAlgorithm` (e.g. `SHA256`, `SHA384`, `SHA3-384`) — omit for EC/EdDSA. `usePSS` only valid on a PKCS11 RSA key.
+`SignerPrivateKey` (`privateKey`/`altPrivateKey`): `keystore` and `name` (key alias) required and must exist. `hashAlgorithm` (e.g. `SHA256`, `SHA384`, `SHA3-384`): set it for RSA and EC keys (Stream 2.2 rejects an EC key without it: CA-002 "Missing hash algorithm"); omit it for EdDSA. `usePSS` only valid on a PKCS11 RSA key.
 Hybrid rule: when `altPrivateKey` is set, the primary key must be legacy and the alt key must be PQC; `keyType` then reads e.g. `rsa-2048+mldsa-44`.
 
 ## External-only fields
@@ -84,12 +84,12 @@ create_ca({ config: {
 Then mint the certificate:
 
 1. `generate_ca_csr({ name: "My-Root-CA" })` → returns raw PEM PKCS#10 (`Content-Type: application/pkcs10`, not JSON). Built from `dn` (pending) or the issued cert subject.
-2. `issue_ca({ name: "My-Root-CA", ... })` with `ca == name` → ROOT self-signed (CSR public key must equal the CA public key, else CA-007).
+2. `issue_ca({ name: "My-Root-CA", ... })` with `issuing_ca == name` → ROOT self-signed (CSR public key must equal the CA public key, else CA-007).
 
 ```jsonc
 issue_ca({
   "name": "My-Root-CA",
-  "ca": "My-Root-CA",                         // ca == name ⇒ self-signed root
+  "issuing_ca": "My-Root-CA",                 // issuing_ca == name ⇒ self-signed root
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\n...\n-----END CERTIFICATE REQUEST-----",
   "template": { "lifetime": "3650 days", "pathLen": 1,
                 "crldps": ["http://crl.acme.example/root.crl"] }
@@ -100,12 +100,12 @@ issue_ca({
 
 ## Create a managed subordinate
 
-Identical to the root flow, except at issue time `ca` names the **parent issuing CA** (a ready managed CA that signs), so `ca != name`:
+Identical to the root flow, except at issue time `issuing_ca` names the **parent issuing CA** (a ready managed CA that signs), so `issuing_ca != name`:
 
 ```jsonc
 issue_ca({
   "name": "My-Sub-CA",
-  "ca": "My-Root-CA",                         // ca != name ⇒ subordinate
+  "issuing_ca": "My-Root-CA",                 // issuing_ca != name ⇒ subordinate
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\n...\n-----END CERTIFICATE REQUEST-----",
   "template": { "lifetime": "1825 days", "pathLen": 0 }
 })
@@ -180,13 +180,15 @@ Requires Stream 2.2 or later and the `stream-offline-ca` license module. A CRL s
 
 Flow:
 
-1. **`preview_crl_series`** (read-only): give the CA `name`, `start`, `end`, `overlap` and `validity` (durations such as `"365 days"`). The first CRL runs from `start` for `validity`; each next CRL starts `overlap` before the previous `nextUpdate` and ends `validity` after it. The series stops at the first CRL whose `nextUpdate` reaches `end` or the CA expiration (max 100 CRLs). Nothing is signed or stored.
+1. **`preview_crl_series`** (read-only): give the CA `name`, `start`, `end`, `overlap` and `validity` (durations such as `"365 days"`). The first CRL runs from `start` for `validity`; each next CRL starts `overlap` before the previous `nextUpdate` and ends `validity` after it. The series stops at the first CRL whose `nextUpdate` reaches `end` or the CA expiration (max 100 CRLs). `start` must not be before 00:00 UTC today or before the CA `notBefore` (CA-020); for a CA issued today, start tomorrow. Nothing is signed or stored.
 2. **`generate_crl_series`**: send the previewed `series` unchanged. The CA key signs the CRLs in an async job; the tool returns the job with `status: pending`. Only one job per CA can run at a time (CA-021).
 3. **`list_crl_series`** (read-only): poll until the job `status` is `succeeded` (or `failed`, with `error.message`). Jobs of every CA are listed, newest first, with `total` and `signed` progress.
 4. **`download_crl_series`** (read-only): get the CRLs of a succeeded job as a base64 zip of DER CRLs, in series order. A job that has not succeeded returns CA-023.
 5. **`delete_crl_series`** (destructive, `expected_id` echo): delete the job and its CRLs when you no longer need them. A pending or running job cannot be deleted (CA-023).
 
 Do not confuse with `generate_crl`, which asks the CA for one CRL now.
+
+With a `stream-offline-ca` license, a CA cannot have `crlPolicy.hardGeneration` or `crlPolicy.lazyGeneration` schedules (CA-002 on create or update). Sign CRLs in advance with a CRL series instead.
 
 ## update_ca is full-replace (cert/key restored by server)
 
