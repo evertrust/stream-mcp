@@ -375,17 +375,26 @@ describe('credentials', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
-  it('raw credential requires secret on create and update', () => {
+  it('create raw credential without secret -> isError (no POST)', async () => {
+    const { client, tool } = setup();
+    const res = await tool('create_credential').h({
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('secret');
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('update raw credential accepts a missing secret (keeps the stored one)', () => {
     const { tool } = setup();
-    for (const name of ['create_credential', 'update_credential']) {
-      const schema = tool(name).c.inputSchema;
-      const base = { type: 'raw', name: 'gcp', target: 'gcp' };
-      expect(schema.safeParse(base).success, name).toBe(false);
-      expect(
-        schema.safeParse({ ...base, secret: { clear: '{}' } }).success,
-        name,
-      ).toBe(true);
-    }
+    const parsed = tool('update_credential').c.inputSchema.safeParse({
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it('password credential accepts a missing password', () => {

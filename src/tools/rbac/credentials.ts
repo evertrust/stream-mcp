@@ -116,10 +116,12 @@ const rawCred = z.object({
         `${CREDENTIALS_TYPE_TARGETS.raw.join(', ')}.`,
     ),
   description: z.string().optional().describe('Optional human description.'),
-  secret: secretObject.describe(
-    'MANDATORY. Write-only secret ({clear: "<secret>"}). Required on create ' +
-      'and on update.',
-  ),
+  secret: secretObject
+    .optional()
+    .describe(
+      'Write-only secret ({clear: "<secret>"}). MANDATORY on create; omit on ' +
+        'update to keep the stored one.',
+    ),
   expires: z.string().optional().describe('Optional ISO-8601 expiry instant.'),
   triggers: credentialTriggers.optional(),
 });
@@ -187,8 +189,8 @@ type CredentialInput = z.infer<typeof credentialInput>;
 
 /**
  * Validate (type -> target) and build the on-the-wire credential body.
- * `isCreate` makes the x509 key_pair mandatory (on update an omitted key_pair
- * keeps the stored key).
+ * `isCreate` makes the raw secret and the x509 key_pair mandatory (on update
+ * an omitted secret keeps the stored one).
  */
 function buildCredentialBody(
   args: CredentialInput,
@@ -215,7 +217,14 @@ function buildCredentialBody(
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'raw':
-      body['secret'] = args.secret;
+      if (isCreate && args.secret === undefined) {
+        throw new StreamError(422, {
+          errorCode: 'CRED-VALIDATION',
+          message: 'raw credential requires secret on create.',
+          remediation: 'Ask the user for the secret value.',
+        });
+      }
+      if (args.secret !== undefined) body['secret'] = args.secret;
       if (args.expires !== undefined) body['expires'] = args.expires;
       break;
     case 'ssh':
@@ -353,9 +362,8 @@ export function registerCredentialTools(
         'rotate it.\n' +
         'MANDATORY (lookup key + type fields - ask the user; do not infer): ' +
         'type, name, target; plus login for password/ssh, certificate for ' +
-        'x509, and secret for raw (a raw secret is always re-sent). The other ' +
-        'secret fields (password/key/key_pair) are OPTIONAL on update - omit ' +
-        'to keep the stored secret.\n' +
+        'x509. Secret fields (password/secret/key/key_pair) are OPTIONAL on ' +
+        'update - omit to keep the stored secret.\n' +
         'Safety tier: mutating-safe\nIMPORTANT: name + target are immutable.',
       inputSchema: credentialInput,
     },

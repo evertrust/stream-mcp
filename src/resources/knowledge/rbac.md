@@ -95,7 +95,7 @@ Common fields: `name`, `enabled` (bool), `enabledOnUI` (bool), optional `proxy` 
 
 Tools: `list_credentials` (optional `type` / `target` filters), `get_credential`, `create_credential`, `update_credential`, `delete_credential`. Polymorphic on `type`. `name` is the immutable key, and **`target` is immutable on update** (`'target' cannot be edited` → 400).
 
-The secret payload is **write-only**: send it on create/update, but it always comes back redacted (`{}`). On update, **omit the secret to keep the previous value** (`password`, `ssh`, `x509`); only send it to change it. A `raw` credential always needs its `secret`, on create and on update. A credential whose `expires` is already in the past is rejected on create (400).
+The secret payload is **write-only**: send it on create/update, but it always comes back redacted (`{}`). On update, **omit the secret to keep the previous value**; only send it to change it. On create, a `raw` credential needs its `secret` and an `x509` credential needs its key pair. A credential whose `expires` is already in the past is rejected on create (400).
 
 Types and their secret shape:
 
