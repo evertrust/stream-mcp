@@ -387,14 +387,29 @@ describe('credentials', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
-  it('update raw credential accepts a missing secret (keeps the stored one)', () => {
-    const { tool } = setup();
-    const parsed = tool('update_credential').c.inputSchema.safeParse({
+  it('update raw credential without secret omits it from the PUT', async () => {
+    const { client, tool } = setup();
+    client.get.mockResolvedValue({
+      id: 'x',
       type: 'raw',
       name: 'gcp',
       target: 'gcp',
+      secret: {},
     });
-    expect(parsed.success).toBe(true);
+    client.put.mockResolvedValue({});
+    const res = await tool('update_credential').h({
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+      description: 'rotated later',
+    });
+    expect(res.isError).toBeFalsy();
+    expect(client.put).toHaveBeenCalledWith('/api/v1/security/credentials', {
+      type: 'raw',
+      name: 'gcp',
+      target: 'gcp',
+      description: 'rotated later',
+    });
   });
 
   it('password credential accepts a missing password', () => {
