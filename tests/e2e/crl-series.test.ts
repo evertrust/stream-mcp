@@ -50,8 +50,11 @@ describe.skipIf(!enabled)('CRL series (live instance, Stream 2.2+)', () => {
   });
 
   it('previews a series of dated CRLs without signing', async () => {
+    // Tomorrow 00:00 UTC: the series must not start before the CA notBefore,
+    // which can be today for a freshly issued CA.
     const start = new Date();
     start.setUTCHours(0, 0, 0, 0);
+    start.setUTCDate(start.getUTCDate() + 1);
     const end = new Date(start.getTime() + 30 * DAY_MS);
     const series = await client.post<Array<Record<string, unknown>>>(
       `/api/v1/x509/cas/${encodeURIComponent(caName!)}/crls/preview`,
