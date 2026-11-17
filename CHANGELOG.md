@@ -1,3 +1,14 @@
+## [1.1.0](https://github.com/evertrust/stream-mcp/compare/v1.0.2...v1.1.0) (2026-11-17)
+
+### Features
+
+* support Stream 2.2 ([#19](https://github.com/evertrust/stream-mcp/issues/19)) ([aa72f85](https://github.com/evertrust/stream-mcp/commit/aa72f85667b6111c11c4753a7c541159d5a37410))
+
+### Bug Fixes
+
+* remove internal implementation references from docs, descriptions and tests ([405c674](https://github.com/evertrust/stream-mcp/commit/405c674318463cc0e6f73492b32f18b165b392f1))
+* update dependencies to clear security advisories ([2121bec](https://github.com/evertrust/stream-mcp/commit/2121bec06f1b89341de65ced1549ceea482d786e))
+
 ## [1.0.2](https://github.com/evertrust/stream-mcp/compare/v1.0.1...v1.0.2) (2026-07-02)
 
 ### Bug Fixes
